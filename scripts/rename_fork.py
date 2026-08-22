@@ -88,16 +88,20 @@ def _replacements(args: argparse.Namespace) -> list[tuple[str, str]]:
     # ``compliance-advisory``), so the default new dist is simply the new resource.
     # Order matters: the longer, more specific strings (package/resource, which contain
     # the bare CLI word) are replaced first.
+    # The distribution name is the same token as the resource name, so replacing it bare
+    # consumes every occurrence and leaves the entry below doing nothing: a --dist that
+    # differs from --resource would silently rewrite the resource name too. Anchoring the
+    # distribution on its pyproject declaration keeps the two independently meaningful.
     pairs = [
-        (_OLD_DIST, args.dist or args.resource),
+        (f'name = "{_OLD_DIST}"', f'name = "{args.dist or args.resource}"'),
         (_OLD_PACKAGE, args.package),
         (_OLD_RESOURCE, args.resource),
         (_OLD_CLI, args.cli),
         (_OLD_ENV_PREFIX, env_prefix),
     ]
-    # Dedupe by old-string (keep first). Here _OLD_DIST == _OLD_RESOURCE, so the resource
-    # row folds into the dist row and both map to the same new value; without this the plan
-    # would print a confusing duplicate mapping.
+    # Dedupe by old-string (keep first), so a repeated old string cannot print a confusing
+    # duplicate mapping in the plan. The anchored distribution key is no longer the bare
+    # _OLD_RESOURCE string, so the resource row stands on its own rather than folding away.
     seen: set[str] = set()
     deduped: list[tuple[str, str]] = []
     for old, new in pairs:
