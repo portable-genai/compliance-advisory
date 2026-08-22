@@ -1,0 +1,349 @@
+# Compliance Assistant (C1) — runtime configuration.
+#
+# Three deployment profiles, selected by COMPLIANCE_PROFILE (or profile: below):
+#   gcp    : Google Cloud managed services (lazy SDK imports). Production sets
+#            COMPLIANCE_PROFILE=gcp explicitly.
+#   local  : a WORKING offline laptop stack (SQLite FTS5 + deterministic LLM,
+#            SDK-free, no API key, no emulator required). Dev / test / CI set
+#            COMPLIANCE_PROFILE=local explicitly.
+#   onprem : fail-fast Google Distributed Cloud migration placeholders.
+# Nothing in src/compliance_advisory/domain changes between profiles.
+#
+# Leaving COMPLIANCE_PROFILE unset is a THIRD state, not a chosen `local`: the adapter
+# family still falls back to the SDK-free local one, but no security decision reads the
+# absence as consent, so the CORS dev-origin fallback is off and the no-auth seeded personas
+# refuse to serve.
+
+project_id: ${GOOGLE_CLOUD_PROJECT:-your-gcp-project}
+region: asia-southeast1            # Singapore — MAS/HKMA/APRA/FSA data residency
+# gcp | local | live | platform | onprem. Deliberately NO fallback value: an empty result
+# means nobody chose, which the loader keeps distinct from a chosen `local`. Set
+# COMPLIANCE_PROFILE, or hard-code a profile here for a reviewed deployment.
+profile: ${COMPLIANCE_PROFILE:-}
+kms_key: ${COMPLIANCE_KMS_KEY:-}       # regional Cloud KMS key for CMEK
+grounding_enabled: ${COMPLIANCE_GROUNDING_ENABLED:-true}
+
+models:
+  reasoning: gemini-3.5-flash          # GA — answers & compliance reasoning (thinking=high)
+  triage: gemini-3.1-flash-lite        # GA — routing / retrieval-need / guardrail pre-checks
+  hard_reasoning: gemini-3.1-pro       # Preview — OFF unless use_hard_reasoning=true
+  use_hard_reasoning: false
+
+agent_search:
+  data_store_id: compliance-reg-kb
+  engine_id: compliance-advisory-engine
+  location: asia-southeast1
+  serving_config: default_search
+
+alloydb:
+  instance_uri: ${COMPLIANCE_ALLOYDB_URI:-}
+  database: compliance
+  user: compliance_app
+  ip_type: PRIVATE
+  table: corpus_freshness
+
+model_armor:
+  template_id: compliance-guardrail
+  host: modelarmor.asia-southeast1.rep.googleapis.com
+
+dlp:
+  inspect_template: ${COMPLIANCE_DLP_INSPECT_TEMPLATE:-}
+  deidentify_template: ${COMPLIANCE_DLP_DEIDENTIFY_TEMPLATE:-}
+
+# Live control-posture sources for the control-mapping capability (the /map,
+# /evidence-pack and /gaps routes). Read only under the gcp profile's SCC + Asset
+# Inventory + Assured Workloads adapter; the local profile uses a canned posture and the
+# onprem placeholder fails fast. NOTE: this pipeline is wired WITHOUT Model Armor / DLP by
+# design — it reasons over the bank's own cloud control posture, not customer PII
+# (R1 / P-04 = N/A; see COMPLIANCE.md).
+posture:
+  scc_parent: ${COMPLIANCE_SCC_PARENT:-}          # organizations/<id> | projects/<id>
+  asset_scope: ${GOOGLE_CLOUD_PROJECT:-your-gcp-project}
+  assured_workload: ${COMPLIANCE_ASSURED_WORKLOAD:-}
+
+logging:
+  log_name: compliance-advisory-audit
+  bucket: compliance-advisory-worm
+  retention_days: 2557               # ~7 years; bucket is locked (irreversible) in prod
+
+agent_engine:
+  resource_name: ${COMPLIANCE_AGENT_ENGINE:-}
+  display_name: compliance-advisory
+
+corpus:
+  ttl_days: 7                        # fetch-at-runtime freshness window
+  registry_path: src/compliance_advisory/pipelines/sources/registry.yaml
+
+# Bank-owned maker-checker and severity policy for the assistant path. The values are the
+# reference defaults in domain/policy.py; adopters override configuration, never engine code.
+policy:
+  answer_confidence_floor: 0.6
+  review_all_answers: true
+  always_review_artifacts: [answer, checklist, testcases, testcase, regulator_questions]
+  high_severities: [high, critical]
+  high_risk_topics:
+    - operational-resilience
+    - outsourcing
+    - incident
+    - cyber
+    - aml
+    - sanctions
+    - third-party
+
+# SDK-free 'local' profile stores. Empty => per-package defaults under
+# ~/.compliance_advisory/ ; tests pass ':memory:' for ephemeral, deterministic stores.
+local:
+  db_path: ${COMPLIANCE_LOCAL_DB:-}            # SQLite FTS5 retrieval index
+  audit_path: ${COMPLIANCE_LOCAL_AUDIT:-}      # append-only local audit store
+  ledger_path: ${COMPLIANCE_LOCAL_LEDGER:-}    # freshness ledger
+  horizon_path: ${COMPLIANCE_LOCAL_HORIZON:-}  # horizon implementation tracking
+
+# ----------------------------------------------------------------------------- #
+# Regulatory horizon scanning: the BANK-OWNED policy numbers (B4).
+#
+# Applicability, materiality and ownership routing are decided in PURE CODE
+# (domain/horizon/policy.py) from exactly these values; the model only narrates the
+# result and can never produce the score. The values below are the reference policy
+# (identical to the dataclass defaults in domain/horizon/policy.py) - an adopting bank
+# edits THIS file, never the engine. Materiality is an additive 0..100 score: change kind
+# + document type + capped topic overlap + capped open-control-gap pressure, minus the
+# conditional-applicability discount, banded by band_thresholds.
+# ----------------------------------------------------------------------------- #
+horizon:
+  # The regulated footprint. A change outside it is NOT_APPLICABLE and scores zero.
+  in_scope_regulators: [MAS, HKMA, APRA, FSA, CROSS]
+  in_scope_jurisdictions: [SG, HK, AU, JP, GLOBAL]
+  in_scope_topics:
+    - outsourcing
+    - third-party-risk
+    - cloud
+    - data-residency
+    - technology-risk
+    - cyber-resilience
+    - information-security
+    - incident-response
+    - operational-resilience
+    - business-continuity
+    - ai-governance
+    - model-risk
+    - it-governance
+
+  # Materiality drivers.
+  change_kind_weights:
+    new_source: 40
+    content_revised: 32
+    withdrawn: 24
+    version_bump: 12
+    unchanged: 0
+  doc_type_weights:
+    standard: 22
+    notice: 20
+    guideline: 14
+    circular: 12
+    advisory: 8
+    consultation: 6
+    other: 4
+  topic_points: 8               # per in-scope topic the change touches
+  max_topic_points: 24
+  open_gap_points: 7            # per open control gap for the same regulator
+  max_open_gap_points: 21
+  conditional_penalty: 12       # discount when applicability is unconfirmed
+
+  # Banding + remediation SLA (days), evaluated strongest-first.
+  band_thresholds:
+    critical: 78
+    high: 58
+    medium: 34
+    low: 0
+  sla_days:
+    critical: 30
+    high: 60
+    medium: 90
+    low: 180
+
+  # Deterministic ownership routing: first matching topic rule wins, then a regulator
+  # rule, then default_owner. Routing is always human-reviewed (P-06, rule R8).
+  topic_owners:
+    outsourcing: third-party-risk-office
+    third-party-risk: third-party-risk-office
+    cloud: cloud-controls-office
+    data-residency: cloud-controls-office
+    technology-risk: ciso-office
+    cyber-resilience: ciso-office
+    information-security: ciso-office
+    incident-response: ciso-office
+    operational-resilience: operational-resilience-office
+    business-continuity: operational-resilience-office
+    ai-governance: model-risk-office
+    model-risk: model-risk-office
+    it-governance: compliance-office
+  regulator_owners: {}
+  default_owner: compliance-office
+  review_band: medium           # at or above this band a change must be human-reviewed
+
+# The `live` profile's local model server: real inference on the operator's own machine
+# (MLX / Ollama / vLLM / llama.cpp, any OpenAI-compatible /chat/completions endpoint).
+# live pairs this generator with the REAL regulatory corpus ingested by
+# `python -m compliance_advisory.pipelines.refresh_job --full`; the fictional local
+# seed never appears under it.
+live:
+  llm_url: ${COMPLIANCE_LIVE_LLM_URL:-http://127.0.0.1:8001/chat/completions}
+  llm_model: ${COMPLIANCE_LIVE_LLM_MODEL:-mlx-community/gemma-4-26b-a4b-it-8bit}
+  timeout_seconds: ${COMPLIANCE_LIVE_TIMEOUT:-240}
+  max_output_tokens: ${COMPLIANCE_LIVE_MAX_TOKENS:-2048}
+
+# ----------------------------------------------------------------------------- #
+# Port -> adapter bindings. The container requires an exact entry for the active profile;
+# no profile inherits a managed-cloud implementation implicitly. These dotted paths are
+# the build contract: each adapter class takes a single Settings argument.
+# ----------------------------------------------------------------------------- #
+adapters:
+  # End-user identity (authentication). local = seeded dev personas, NO IdP/AD/LDAP, so
+  # demos and tests run offline; gcp/platform = verify the IAP-injected signed assertion
+  # (auth configured ON the GCP service); onprem = client IdP placeholder. The resolved
+  # Principal supplies the audit actor, replacing any client-asserted actor.
+  identity:
+    gcp: compliance_advisory.adapters.gcp.iap_identity:IapIdentityAdapter
+    platform: compliance_advisory.adapters.gcp.iap_identity:IapIdentityAdapter
+    local: compliance_advisory.adapters.local.identity:LocalPersonaIdentityAdapter
+    live: compliance_advisory.adapters.local.identity:LocalPersonaIdentityAdapter
+    onprem: compliance_advisory.adapters.onprem.identity:OnPremIdentityAdapter
+  # Rule R8: an escalated answer (requires_human_review) is ROUTED to the Hrz7 Human-Review &
+  # Maker-Checker Console via the shared review-kit, not left as a per-repo boolean.
+  # gcp/platform submit over S2S to Hrz7; local enqueues to an in-memory outbox so the routing
+  # path runs offline; onprem is the fail-fast sovereign placeholder.
+  review_router:
+    gcp: compliance_advisory.adapters.platform.review_router:PlatformReviewRouter
+    platform: compliance_advisory.adapters.platform.review_router:PlatformReviewRouter
+    local: compliance_advisory.adapters.local.review_router:LocalReviewRouter
+    live: compliance_advisory.adapters.local.review_router:LocalReviewRouter
+    onprem: compliance_advisory.adapters.onprem.review_router:OnPremReviewRouter
+  retrieval:
+    gcp: compliance_advisory.adapters.gcp.agent_search_retrieval:AgentSearchRetrievalAdapter
+    platform: compliance_advisory.adapters.gcp.agent_search_retrieval:AgentSearchRetrievalAdapter
+    local: compliance_advisory.adapters.local.retrieval:LocalFtsRetrievalAdapter
+    live: compliance_advisory.adapters.live.retrieval:LiveCorpusRetrievalAdapter
+    onprem: compliance_advisory.adapters.onprem.retrieval:OnPremRetrievalAdapter
+  # Control-mapping reg KB (merged from C2). There is ONE reg KB: this port binds IN-PROCESS
+  # to the retrieval adapter above (no separate File Search store, no HTTP hop to /ask, no
+  # duplicate FTS5 seed). The same class serves every profile — it resolves and delegates to
+  # whichever retrieval adapter the active profile binds, so onprem inherits the retrieval
+  # placeholder's fail-fast behaviour.
+  requirement_source:
+    gcp: compliance_advisory.adapters.requirements:RetrievalRequirementSourceAdapter
+    platform: compliance_advisory.adapters.requirements:RetrievalRequirementSourceAdapter
+    local: compliance_advisory.adapters.requirements:RetrievalRequirementSourceAdapter
+    live: compliance_advisory.adapters.requirements:RetrievalRequirementSourceAdapter
+    onprem: compliance_advisory.adapters.requirements:RetrievalRequirementSourceAdapter
+  # Live GCP control posture for control mapping: Security Command Center + Cloud Asset
+  # Inventory + Assured Workloads (gcp), a canned deterministic posture (local), or a
+  # fail-fast sovereign placeholder (onprem). No remote-platform variant — the posture is
+  # read directly from the bank's own GCP organisation.
+  control_inventory:
+    gcp: compliance_advisory.adapters.gcp.scc_inventory:SccControlInventoryAdapter
+    platform: compliance_advisory.adapters.gcp.scc_inventory:SccControlInventoryAdapter
+    local: compliance_advisory.adapters.local.inventory:LocalControlInventoryAdapter
+    live: compliance_advisory.adapters.local.inventory:LocalControlInventoryAdapter
+    onprem: compliance_advisory.adapters.onprem.inventory:OnPremControlInventoryAdapter
+  llm:
+    gcp: compliance_advisory.adapters.gcp.gemini_llm:GeminiLLMAdapter
+    platform: compliance_advisory.adapters.gcp.gemini_llm:GeminiLLMAdapter
+    local: compliance_advisory.adapters.local.llm:LocalDeterministicLLMAdapter
+    live: compliance_advisory.adapters.live.llm:GemmaLocalLLMAdapter
+    onprem: compliance_advisory.adapters.onprem.llm:OnPremLLMAdapter
+  grounding:
+    gcp: compliance_advisory.adapters.gcp.gemini_grounding:GeminiGoogleSearchGroundingAdapter
+    platform: compliance_advisory.adapters.gcp.gemini_grounding:GeminiGoogleSearchGroundingAdapter
+    local: compliance_advisory.adapters.local.grounding:LocalDisabledGroundingAdapter
+    live: compliance_advisory.adapters.local.grounding:LocalDisabledGroundingAdapter
+    onprem: compliance_advisory.adapters.onprem.grounding:OnPremGroundingAdapter
+  guardrail:
+    gcp: compliance_advisory.adapters.gcp.model_armor_guardrail:ModelArmorGuardrailAdapter
+    local: compliance_advisory.adapters.local.guardrail:LocalHeuristicGuardrailAdapter
+    live: compliance_advisory.adapters.local.guardrail:LocalHeuristicGuardrailAdapter
+    platform: compliance_advisory.adapters.platform.remote_guardrail:RemoteGuardrailAdapter
+    onprem: compliance_advisory.adapters.onprem.guardrail:OnPremGuardrailAdapter
+  redaction:
+    gcp: compliance_advisory.adapters.gcp.dlp_redaction:DlpRedactionAdapter
+    platform: compliance_advisory.adapters.gcp.dlp_redaction:DlpRedactionAdapter
+    local: compliance_advisory.adapters.local.redaction:LocalRegexRedactionAdapter
+    live: compliance_advisory.adapters.local.redaction:LocalRegexRedactionAdapter
+    onprem: compliance_advisory.adapters.onprem.redaction:OnPremRedactionAdapter
+  agent_runtime:
+    gcp: compliance_advisory.adapters.gcp.agent_runtime:AgentRuntimeAdapter
+    platform: compliance_advisory.adapters.gcp.agent_runtime:AgentRuntimeAdapter
+    local: compliance_advisory.adapters.local.runtime:LocalAgentRuntimeAdapter
+    live: compliance_advisory.adapters.local.runtime:LocalAgentRuntimeAdapter
+    onprem: compliance_advisory.adapters.onprem.runtime:OnPremAgentRuntimeAdapter
+  session:
+    gcp: compliance_advisory.adapters.gcp.vertex_sessions:VertexSessionsAdapter
+    platform: compliance_advisory.adapters.gcp.vertex_sessions:VertexSessionsAdapter
+    local: compliance_advisory.adapters.local.session:LocalSessionAdapter
+    live: compliance_advisory.adapters.local.session:LocalSessionAdapter
+    onprem: compliance_advisory.adapters.onprem.session:OnPremSessionAdapter
+  memory:
+    gcp: compliance_advisory.adapters.gcp.vertex_memory_bank:VertexMemoryBankAdapter
+    platform: compliance_advisory.adapters.gcp.vertex_memory_bank:VertexMemoryBankAdapter
+    local: compliance_advisory.adapters.local.memory:LocalMemoryAdapter
+    live: compliance_advisory.adapters.local.memory:LocalMemoryAdapter
+    onprem: compliance_advisory.adapters.onprem.memory:OnPremMemoryAdapter
+  audit:
+    gcp: compliance_advisory.adapters.gcp.cloud_logging_audit:CloudLoggingAuditAdapter
+    local: compliance_advisory.adapters.local.audit:LocalAppendOnlyAuditAdapter
+    live: compliance_advisory.adapters.local.audit:LocalAppendOnlyAuditAdapter
+    platform: compliance_advisory.adapters.platform.remote_audit:RemoteAuditAdapter
+    onprem: compliance_advisory.adapters.onprem.audit:OnPremAuditAdapter
+  tracer:
+    gcp: compliance_advisory.adapters.gcp.cloud_trace_tracer:CloudTraceTracerAdapter
+    platform: compliance_advisory.adapters.gcp.cloud_trace_tracer:CloudTraceTracerAdapter
+    local: compliance_advisory.adapters.local.tracer:LocalNoopTracerAdapter
+    live: compliance_advisory.adapters.local.tracer:LocalNoopTracerAdapter
+    onprem: compliance_advisory.adapters.onprem.tracer:OnPremTracerAdapter
+  evaluation:
+    gcp: compliance_advisory.adapters.gcp.genai_eval:GenAiEvalAdapter
+    local: compliance_advisory.adapters.local.evaluation:LocalOfflineEvalAdapter
+    live: compliance_advisory.adapters.local.evaluation:LocalOfflineEvalAdapter
+    onprem: compliance_advisory.adapters.onprem.evaluation:OnPremEvalAdapter
+    platform: compliance_advisory.adapters.platform.remote_evaluation:RemoteEvaluationAdapter
+  registry:
+    gcp: compliance_advisory.adapters.gcp.a2a_registry:A2ARegistryAdapter
+    local: compliance_advisory.adapters.local.registry:LocalRegistryAdapter
+    live: compliance_advisory.adapters.local.registry:LocalRegistryAdapter
+    platform: compliance_advisory.adapters.platform.remote_registry:RemoteRegistryAdapter
+    onprem: compliance_advisory.adapters.onprem.registry:OnPremRegistryAdapter
+  tool_catalog:
+    gcp: compliance_advisory.adapters.gcp.mcp_tool_catalog:McpToolCatalogAdapter
+    platform: compliance_advisory.adapters.gcp.mcp_tool_catalog:McpToolCatalogAdapter
+    local: compliance_advisory.adapters.local.tool_catalog:LocalToolCatalogAdapter
+    live: compliance_advisory.adapters.local.tool_catalog:LocalToolCatalogAdapter
+    onprem: compliance_advisory.adapters.onprem.tool_catalog:OnPremToolCatalogAdapter
+  ledger:
+    gcp: compliance_advisory.adapters.gcp.alloydb_ledger:AlloyDBLedgerAdapter
+    platform: compliance_advisory.adapters.gcp.alloydb_ledger:AlloyDBLedgerAdapter
+    local: compliance_advisory.adapters.local.ledger:LocalLedgerAdapter
+    live: compliance_advisory.adapters.local.ledger:LocalLedgerAdapter
+    onprem: compliance_advisory.adapters.onprem.ledger:OnPremLedgerAdapter
+  # Regulatory source registry metadata (regulator, jurisdiction, doc type, topics) behind
+  # each freshness-ledger row. The registry is a repo-local YAML file, not a managed
+  # service, so ONE class serves every profile - the horizon diff is then byte-identical
+  # offline and in production.
+  source_catalog:
+    gcp: compliance_advisory.adapters.source_catalog:RegistrySourceCatalogAdapter
+    platform: compliance_advisory.adapters.source_catalog:RegistrySourceCatalogAdapter
+    local: compliance_advisory.adapters.source_catalog:RegistrySourceCatalogAdapter
+    live: compliance_advisory.adapters.source_catalog:RegistrySourceCatalogAdapter
+    onprem: compliance_advisory.adapters.source_catalog:RegistrySourceCatalogAdapter
+  # Implementation journey for each assessed regulatory change: AlloyDB alongside the
+  # freshness ledger (gcp), SQLite (local), fail-fast sovereign placeholder (onprem).
+  horizon_tracker:
+    gcp: compliance_advisory.adapters.gcp.alloydb_horizon_tracker:AlloyDBHorizonTrackerAdapter
+    platform: compliance_advisory.adapters.gcp.alloydb_horizon_tracker:AlloyDBHorizonTrackerAdapter
+    local: compliance_advisory.adapters.local.horizon_tracker:LocalHorizonTrackerAdapter
+    live: compliance_advisory.adapters.local.horizon_tracker:LocalHorizonTrackerAdapter
+    onprem: compliance_advisory.adapters.onprem.horizon_tracker:OnPremHorizonTrackerAdapter
+  ingestion:
+    gcp: compliance_advisory.adapters.gcp.agent_search_ingestion:AgentSearchIngestionAdapter
+    platform: compliance_advisory.adapters.gcp.agent_search_ingestion:AgentSearchIngestionAdapter
+    local: compliance_advisory.adapters.local.retrieval:LocalIngestionAdapter
+    live: compliance_advisory.adapters.local.retrieval:LocalIngestionAdapter
+    onprem: compliance_advisory.adapters.onprem.ingestion:OnPremIngestionAdapter

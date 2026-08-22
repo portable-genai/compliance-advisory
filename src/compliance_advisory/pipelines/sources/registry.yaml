@@ -1,0 +1,263 @@
+# C1 Compliance Assistant — regulatory source registry.
+#
+# Fetch-at-runtime knowledge base (SPEC §2 "Reg KB data"): the repo ships ONLY this
+# registry plus a tiny synthetic sample. At runtime the pipelines download each public
+# document, redact defensively (P-04), ingest it into Agent Search, and record freshness
+# in the AlloyDB ledger with a 7-day TTL (corpus.ttl_days).
+#
+# Each entry is a RegSource (see domain/models.py): id, regulator, jurisdiction, title,
+# url, doc_type, version, published_date, topics. URLs are the regulators' own public
+# documents; ids are stable slugs used as the ledger key and Agent Search document id.
+#
+# regulator  : MAS | HKMA | APRA | FSA | CROSS
+# jurisdiction: SG | HK | AU | JP | GLOBAL
+# doc_type   : notice | guideline | circular | standard | consultation | advisory | other
+
+sources:
+  # ----------------------------------------------------------------------------- #
+  # MAS — Monetary Authority of Singapore (SG)
+  # ----------------------------------------------------------------------------- #
+  - id: mas-trm-guidelines-2021
+    regulator: MAS
+    jurisdiction: SG
+    title: Technology Risk Management Guidelines
+    url: https://www.mas.gov.sg/-/media/MAS/Regulations-and-Financial-Stability/Regulatory-and-Supervisory-Framework/Risk-Management/TRM-Guidelines-18-January-2021.pdf
+    doc_type: guideline
+    version: 2021-01-18
+    published_date: "2021-01-18"
+    topics:
+      - technology-risk
+      - cyber-resilience
+      - it-governance
+      - third-party-risk
+      - incident-response
+
+  - id: mas-outsourcing-guidelines-2018
+    regulator: MAS
+    jurisdiction: SG
+    title: Guidelines on Outsourcing
+    url: https://www.mas.gov.sg/-/media/MAS/Regulations-and-Financial-Stability/Regulatory-and-Supervisory-Framework/Risk-Management/Outsourcing-Guidelines_Jul-2016-revised-on-5-Oct-2018.pdf
+    doc_type: guideline
+    version: 2018-10-05
+    published_date: "2016-07-27"
+    topics:
+      - outsourcing
+      - cloud
+      - third-party-risk
+      - operational-resilience
+
+  - id: mas-feat-principles-2018
+    regulator: MAS
+    jurisdiction: SG
+    title: >-
+      Principles to Promote Fairness, Ethics, Accountability and Transparency
+      (FEAT) in the Use of AI and Data Analytics
+    url: https://www.mas.gov.sg/-/media/MAS/News%20and%20Publications/Monographs%20and%20Information%20Papers/FEAT%20Principles%20Final.pdf
+    doc_type: advisory
+    version: 2018-11-12
+    published_date: "2018-11-12"
+    topics:
+      - artificial-intelligence
+      - responsible-ai
+      - fairness
+      - accountability
+      - transparency
+
+  - id: mas-ai-ml-fairness-info-paper-2022
+    regulator: MAS
+    jurisdiction: SG
+    title: Information Paper on Implementation of Fairness Principles in FIs' Use of AI/ML
+    url: https://www.mas.gov.sg/-/media/MAS-Media-Library/publications/monographs-or-information-paper/IMD/2022/Info-Paper-on-Implementation-of-Fairness-Principles-in-FIs-Use-of-AIML-Final.pdf
+    doc_type: advisory
+    version: "2022"
+    published_date: "2022-05-30"
+    topics:
+      - artificial-intelligence
+      - model-risk
+      - fairness
+      - governance
+
+  # ----------------------------------------------------------------------------- #
+  # HKMA — Hong Kong Monetary Authority (HK)
+  # ----------------------------------------------------------------------------- #
+  - id: hkma-genai-consumer-protection-2024
+    regulator: HKMA
+    jurisdiction: HK
+    title: >-
+      Consumer Protection in respect of Use of Generative Artificial
+      Intelligence (Circular)
+    url: https://www.hkma.gov.hk/media/eng/doc/key-information/guidelines-and-circular/2024/20240819e1.pdf
+    doc_type: circular
+    version: 2024-08-19
+    published_date: "2024-08-19"
+    topics:
+      - generative-ai
+      - consumer-protection
+      - customer-facing
+      - human-oversight
+
+  - id: hkma-genai-fin-services-research-2024
+    regulator: HKMA
+    jurisdiction: HK
+    title: Generative Artificial Intelligence in the Financial Services Space (Research Paper)
+    url: https://www.hkma.gov.hk/media/eng/doc/key-information/guidelines-and-circular/2024/GenAI_research_paper.pdf
+    doc_type: advisory
+    version: "2024"
+    published_date: "2024-11-18"
+    topics:
+      - generative-ai
+      - model-risk
+      - governance
+      - use-cases
+
+  - id: hkma-or-2-operational-resilience-2022
+    regulator: HKMA
+    jurisdiction: HK
+    title: Supervisory Policy Manual OR-2 Operational Resilience
+    url: https://www.hkma.gov.hk/media/eng/doc/key-information/guidelines-and-circular/2022/20220531e1a1.pdf
+    doc_type: guideline
+    version: 2022-05-31
+    published_date: "2022-05-31"
+    topics:
+      - operational-resilience
+      - business-continuity
+      - third-party-risk
+      - critical-operations
+
+  - id: hkma-sa-2-cloud-computing-2022
+    regulator: HKMA
+    jurisdiction: HK
+    title: Supervisory Policy Manual SA-2 Outsourcing (Cloud Computing)
+    # HKMA serves /media/ PDF paths through a JS-gated repository; the fetcher fails
+    # with a manual-drop hint (pipelines/sources/manual/<id>.pdf) rather than indexing
+    # the repository HTML. The URL below is the circular's canonical address.
+    url: https://www.hkma.gov.hk/media/eng/doc/key-information/guidelines-and-circular/2022/20220831e1.pdf
+    doc_type: guideline
+    version: 2022-12-31
+    published_date: "2022-12-31"
+    topics:
+      - cloud
+      - outsourcing
+      - third-party-risk
+
+  # ----------------------------------------------------------------------------- #
+  # APRA — Australian Prudential Regulation Authority (AU)
+  # ----------------------------------------------------------------------------- #
+  - id: apra-cps-230-operational-risk-2025
+    regulator: APRA
+    jurisdiction: AU
+    title: Prudential Standard CPS 230 Operational Risk Management
+    url: https://www.apra.gov.au/sites/default/files/2023-07/Prudential%20Standard%20CPS%20230%20Operational%20Risk%20Management%20-%20clean.pdf
+    doc_type: standard
+    version: 2025-07-01
+    published_date: "2023-07-17"
+    topics:
+      - operational-risk
+      - operational-resilience
+      - third-party-risk
+      - business-continuity
+      - critical-operations
+
+  - id: apra-cpg-230-operational-risk-2024
+    regulator: APRA
+    jurisdiction: AU
+    title: Prudential Practice Guide CPG 230 Operational Risk Management
+    url: https://www.apra.gov.au/sites/default/files/2024-06/Prudential%20Practice%20Guide%20CPG%20230%20Operational%20Risk%20Management.pdf
+    doc_type: guideline
+    version: "2024"
+    published_date: "2024-06-26"
+    topics:
+      - operational-risk
+      - operational-resilience
+      - implementation-guidance
+
+  - id: apra-cps-234-information-security-2019
+    regulator: APRA
+    jurisdiction: AU
+    title: Prudential Standard CPS 234 Information Security
+    url: https://www.apra.gov.au/sites/default/files/cps_234_july_2019_for_public_release.pdf
+    doc_type: standard
+    version: 2019-07-01
+    published_date: "2018-11-07"
+    topics:
+      - information-security
+      - cyber-resilience
+      - third-party-risk
+      - incident-response
+
+  # ----------------------------------------------------------------------------- #
+  # FSA — Financial Services Agency of Japan (JP)
+  # ----------------------------------------------------------------------------- #
+  - id: jfsa-ai-discussion-paper-2025
+    regulator: FSA
+    jurisdiction: JP
+    title: >-
+      AI Discussion Paper (Version 1.0) — Preliminary Discussion Points for
+      Promoting the Sound Utilization of AI in the Financial Sector
+    url: https://www.fsa.go.jp/en/news/2025/20250304/aidp_en.pdf
+    doc_type: consultation
+    version: "1.0"
+    published_date: "2025-03-04"
+    topics:
+      - artificial-intelligence
+      - generative-ai
+      - model-risk
+      - it-governance
+      - privacy
+
+  - id: jfsa-ai-discussion-paper-summary-2025
+    regulator: FSA
+    jurisdiction: JP
+    title: AI Discussion Paper (Version 1.0) — Summary
+    url: https://www.fsa.go.jp/en/news/2025/20250304/aidp_summary_en.pdf
+    doc_type: consultation
+    version: "1.0"
+    published_date: "2025-03-04"
+    topics:
+      - artificial-intelligence
+      - generative-ai
+      - governance
+
+  # ----------------------------------------------------------------------------- #
+  # CROSS — cross-jurisdiction cloud / AI guidance (GLOBAL)
+  # ----------------------------------------------------------------------------- #
+  - id: bcbs-principles-operational-resilience-2021
+    regulator: CROSS
+    jurisdiction: GLOBAL
+    title: BCBS Principles for Operational Resilience
+    url: https://www.bis.org/bcbs/publ/d516.pdf
+    doc_type: advisory
+    version: "2021"
+    published_date: "2021-03-31"
+    topics:
+      - operational-resilience
+      - third-party-risk
+      - business-continuity
+
+  - id: nist-ai-rmf-1-0-2023
+    regulator: CROSS
+    jurisdiction: GLOBAL
+    title: NIST AI Risk Management Framework (AI RMF 1.0)
+    url: https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf
+    doc_type: standard
+    version: "1.0"
+    published_date: "2023-01-26"
+    topics:
+      - artificial-intelligence
+      - model-risk
+      - governance
+      - trustworthy-ai
+
+  - id: nist-ai-genai-profile-2024
+    regulator: CROSS
+    jurisdiction: GLOBAL
+    title: NIST AI RMF Generative AI Profile (NIST AI 600-1)
+    url: https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf
+    doc_type: standard
+    version: "1.0"
+    published_date: "2024-07-26"
+    topics:
+      - generative-ai
+      - model-risk
+      - governance
+      - trustworthy-ai

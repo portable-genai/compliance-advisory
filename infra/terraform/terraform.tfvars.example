@@ -1,0 +1,34 @@
+# terraform.tfvars.example — concrete sample values for a Singapore-resident deploy.
+#
+# Copy to terraform.tfvars and fill in your own ids. Do NOT commit terraform.tfvars
+# (the AlloyDB password is sensitive). Region/zone are already Singapore — leave them.
+
+project_id = "acme-compliance-sg-prod"
+
+# Singapore residency (P-03) — these are already the secure defaults; shown for clarity.
+region = "asia-southeast1"
+zone   = "asia-southeast1-a"
+
+# ~7-year WORM retention for the audit log (P-08). Bucket lock is irreversible.
+retention_days = 2557
+
+# Org / Access Context Manager. access_policy_id is the numeric policy id.
+# org_id also drives the control-mapping posture sources: it is the
+# SCC parent (COMPLIANCE_SCC_PARENT = organizations/<org_id>) and the org under which
+# the Assured Workloads sovereignty package is created (assured_workloads.tf).
+org_id           = "123456789012"
+billing_account  = "01ABCD-2345EF-67890A"
+access_policy_id = "987654321098"
+
+# Per-tenant secret — the initial AlloyDB application-user password.
+# Prefer passing via TF_VAR_alloydb_password env var or a CI secret store.
+alloydb_password = "change-me-use-a-strong-secret"
+
+# Networking for the private AlloyDB instance.
+vpc_network_name = "compliance-vpc"
+
+# Sovereignty perimeter on by default.
+enable_vpc_sc = true
+
+# Set after the app is deployed (the /corpus/refresh endpoint the scheduler hits).
+agent_runtime_refresh_url = "https://compliance-advisory-xxxx-as.a.run.app/corpus/refresh"

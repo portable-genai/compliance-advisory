@@ -1,0 +1,59 @@
+# Horizon materiality rubric — A4 AI Quality & Model-Risk gate (P-08).
+#
+# Horizon scanning turns a corpus movement into four consequential judgements: does it
+# apply, how material is it, who owns it, and what evidence backs the call. All four are
+# computed in PURE CODE from the config-owned numbers in `config/settings.yaml` under
+# `horizon:`; the model only narrates. These metrics therefore score DECISIONS, not prose.
+#
+# Independent oracle (systemic finding 8): every metric is scored against the golden set's
+# own `expected_outcome`, never against the service's own verdict. `eval/run_eval.py` drives
+# the REAL `HorizonScanService` (real detection diff, real HorizonPolicy built from the
+# shipped settings, real citation assembly) over each seeded ledger row and compares the
+# result with what a compliance officer expects. The harness itself is gated by
+# `tests/unit/test_horizon_eval_can_go_red.py`, which uses
+# `agent_eval_kit.assert_each_can_go_red` to prove each metric can FAIL on a degraded case.
+#
+# Production scorer: the Gen AI evaluation service on the Gemini Enterprise Agent Platform,
+# routed through compliance_advisory.adapters.gcp.genai_eval:GenAiEvalAdapter.
+# Offline/CI scorer: the deterministic comparisons in eval/run_eval.py (no GCP creds).
+
+metric: horizon_materiality_accuracy
+description: >
+  Per-change agreement between the materiality band the policy engine computes and the band
+  the golden set expects. The band drives the remediation SLA and the review severity, so a
+  wrong band is a wrong regulatory response.
+threshold: 0.80          # report fails if score < 0.80
+direction: maximize
+applies_to:
+  - HorizonAssessment.materiality_band
+
+criteria:
+  - id: band_agreement
+    description: The computed band equals the expected band for the change.
+    weight: 1.0
+
+scoring:
+  scale: [0.0, 1.0]
+  pass_if: "score >= threshold"
+
+# Companion metrics evaluated by the same gate. run_eval.py folds these horizon metrics into
+# the SAME EvalReport as the QA and control-mapping metrics; the report's .passed is the AND
+# of every row.
+companion_metrics:
+  horizon_applicability_accuracy:
+    threshold: 0.90
+    description: >
+      The applicability verdict (applicable | conditional | not_applicable) matches the
+      golden expectation. A change wrongly dismissed as out of scope never reaches an owner,
+      so this bar is higher than the band bar.
+  horizon_routing_accuracy:
+    threshold: 0.90
+    description: >
+      The change is routed to the accountable owner the golden set expects. Routing is
+      deterministic (topic rule, then regulator rule, then the configured default), so a
+      miss means the routing table and the bank's operating model have drifted apart.
+  horizon_citation_accuracy:
+    threshold: 0.95
+    description: >
+      Every assessment cites the corpus item that drove it. An uncited materiality call
+      cannot be defended to a regulator, so a single missing citation is close to fatal.

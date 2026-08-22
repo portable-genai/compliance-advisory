@@ -1,0 +1,46 @@
+# Groundedness rubric — A4 AI Quality & Model-Risk gate (P-08).
+#
+# "Groundedness" measures whether every substantive claim in the assistant's answer is
+# supported by the regulatory passages that were actually retrieved and cited — i.e. the
+# answer does not assert facts that float free of a source. For a compliance answer this
+# is non-negotiable: a regulator/CRO must be able to trace each statement back to a primary
+# document and page (see domain.models.Citation).
+#
+# Production scorer: the Gen AI evaluation service on the Gemini Enterprise Agent Platform
+# (vertexai GenAI Client -> client.evals.evaluate with a "groundedness" metric), routed
+# through compliance_advisory.adapters.gcp.genai_eval:GenAiEvalAdapter.
+# Offline/CI scorer: the deterministic heuristic in eval/run_eval.py (every claim sentence
+# must map to at least one cited source), so the gate runs with no GCP credentials.
+
+metric: groundedness
+description: >
+  Fraction of the answer's claim-bearing sentences that are supported by a cited
+  regulatory source. An answer with no citations but non-trivial claims scores 0.
+threshold: 0.80          # report fails if score < 0.80
+direction: maximize
+applies_to:
+  - Answer.answer
+  - ControlChecklist.items
+  - RegulatorQuestion.model_answer
+
+criteria:
+  - id: claim_coverage
+    description: Each substantive claim sentence is attributable to a cited source.
+    weight: 0.6
+  - id: citations_present
+    description: The answer carries at least one regulator-grade Citation.
+    weight: 0.2
+  - id: no_unsupported_specifics
+    description: >
+      Specific obligations, numbers, deadlines and named controls are not asserted
+      unless backed by a retrieved passage.
+    weight: 0.2
+
+scoring:
+  scale: [0.0, 1.0]
+  pass_if: "score >= threshold"
+
+notes: >
+  The offline heuristic is intentionally strict and conservative: it credits a sentence
+  only when the answer also carries citations, so passing the offline gate is a lower
+  bound on the LLM-judge score the production evaluator would assign.

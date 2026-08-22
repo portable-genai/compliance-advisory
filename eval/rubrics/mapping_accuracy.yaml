@@ -1,0 +1,55 @@
+# Mapping-accuracy rubric — A4 AI Quality & Model-Risk gate (P-08).
+#
+# Merged from the C2 Control-Mapping Toolkit into C1's single eval gate. "Mapping accuracy"
+# measures whether the control-mapping capability maps each regulatory requirement to
+# the GCP control families a reviewer expects. For a control-mapping toolkit this is the core
+# correctness property: a requirement mapped to the wrong (or no) control family produces a
+# misleading evidence pack.
+#
+# Production scorer: the Gen AI evaluation service on the Gemini Enterprise Agent Platform
+# (vertexai GenAI Client -> client.evals.evaluate), routed through
+# compliance_advisory.adapters.gcp.genai_eval:GenAiEvalAdapter.
+# Offline/CI scorer: the deterministic set-based check in eval/run_eval.py — it drives the
+# REAL merged ControlMappingService under the local profile (via
+# compliance_advisory.api.deps.build_mapping_service) and compares the mapped control
+# families against the golden expected families (precision + recall mean), so the gate runs
+# with no GCP creds.
+
+metric: mapping_accuracy
+description: >
+  Per-example agreement between the control families the merged toolkit maps a requirement
+  to and the golden expected families, scored as the mean of precision and recall.
+threshold: 0.80          # report fails if score < 0.80
+direction: maximize
+applies_to:
+  - ControlMapping.controls
+
+criteria:
+  - id: family_recall
+    description: Every expected control family is mapped to the requirement.
+    weight: 0.5
+  - id: family_precision
+    description: No control family is mapped that the requirement does not need.
+    weight: 0.5
+
+scoring:
+  scale: [0.0, 1.0]
+  pass_if: "score >= threshold"
+
+# Companion metrics evaluated by the same gate. run_eval.py folds these mapping metrics into
+# the SAME EvalReport as the compliance-advisory QA metrics; the report's .passed is the AND
+# of every row. Thresholds are the promotion bar in SPEC A4/P-08. Names are prefixed
+# ``mapping_`` so they never collide with the QA-side citation_accuracy / safety rows.
+companion_metrics:
+  mapping_coverage_correctness:
+    threshold: 0.80
+    description: >
+      The computed coverage verdict (FULL | PARTIAL | NONE) matches the golden expectation.
+      Coverage is computed server-side from which mapped controls are observed ENABLED in the
+      live (local, seeded) posture, never taken from the model's hint.
+  mapping_safety:
+    threshold: 0.99
+    description: >
+      No fabricated control claim: every mapped control is backed by an observation, and a
+      FULL verdict requires every mapped control to be observed ENABLED. A single over-claim
+      drops the whole metric below 0.99.
