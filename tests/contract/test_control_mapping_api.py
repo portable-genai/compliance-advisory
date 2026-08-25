@@ -87,20 +87,76 @@ def test_evidence_pack_returns_c2_shape_and_is_always_review(client: TestClient)
     assert sum(body["coverage_summary"].values()) == len(body["mappings"])
 
 
+#: The five fields Rsk3, the architecture validator, reads off every gap. Named once so the
+#: route test and the serialization test below cannot pin different sets.
+_GAP_FIELDS = frozenset({"requirement", "missing_controls", "severity", "remediation", "citations"})
+
+
 def test_gaps_returns_c2_shape(client: TestClient) -> None:
+    """The route answers, and any gap it returns carries the consumer's shape.
+
+    The loop here CANNOT be the evidence for that shape, and used to be. The offline
+    corpus has full control coverage, so ``/gaps`` returns an empty list for every scope
+    and the loop body ran zero times -- the second re-audit pass proved it by deleting
+    ``missing_controls``, ``severity``, ``remediation`` and ``citations`` from
+    ``ControlGapModel.from_domain`` and watching the entire suite stay green.
+
+    So this test asserts what a live route can honestly assert, and the shape itself is
+    pinned by ``test_a_gap_serializes_with_every_field_its_consumer_reads`` below, where it
+    cannot depend on whether the fixture data happens to produce a gap.
+    """
     response = client.post("/gaps", json={"scope": SCOPE})
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["scope"] == SCOPE
     assert isinstance(body["gaps"], list)
     for gap in body["gaps"]:
-        assert set(gap) >= {
-            "requirement",
-            "missing_controls",
-            "severity",
-            "remediation",
-            "citations",
-        }
+        assert set(gap) >= _GAP_FIELDS
+
+
+def test_a_gap_serializes_with_every_field_its_consumer_reads() -> None:
+    """The C2 gap contract, asserted on a gap that is guaranteed to exist.
+
+    Constructed rather than retrieved, precisely because no scope in the offline corpus
+    produces one. A contract that can only be checked when the data happens to cooperate is
+    a contract nothing checks.
+    """
+    from compliance_advisory.api.control_mapping_schemas import ControlGapModel
+    from compliance_advisory.domain.control_mapping import models as m
+
+    citation = m.Citation(
+        source_id="apra-cps-234",
+        regulator=m.Regulator.APRA,
+        jurisdiction=m.Jurisdiction.AU,
+        title="APRA CPS 234 Information Security",
+        url="https://example.test/apra-cps-234",
+        version="2019-07-01",
+    )
+    gap = m.ControlGap(
+        requirement=m.RegRequirement(
+            id="apra-cps-234-15",
+            regulator=m.Regulator.APRA,
+            jurisdiction=m.Jurisdiction.AU,
+            title="APRA CPS 234 Information Security",
+            text="An APRA-regulated entity must protect its information assets.",
+            citation=citation,
+        ),
+        missing_controls=(m.ControlFamily.CMEK,),
+        severity=m.Severity.HIGH,
+        remediation="Bind the missing control family and re-run the mapping.",
+        citations=(citation,),
+    )
+
+    serialized = ControlGapModel.from_domain(gap).model_dump()
+
+    assert set(serialized) >= _GAP_FIELDS
+    # Each field carries the domain value through, not merely a key with a default. A
+    # from_domain that dropped a field would still emit the key with its default and satisfy
+    # a set comparison alone.
+    assert serialized["severity"] == gap.severity.value
+    assert serialized["remediation"] == gap.remediation
+    assert serialized["missing_controls"] == [f.value for f in gap.missing_controls]
+    assert serialized["requirement"]["id"] == gap.requirement.id
 
 
 def test_evidence_pack_domain_invariant_always_requires_review(evidence_service) -> None:
