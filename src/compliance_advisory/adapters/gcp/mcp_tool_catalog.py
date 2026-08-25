@@ -6,7 +6,7 @@ capabilities as ``ToolSpec`` objects: ``retrieve_regulations``, ``generate_check
 a peer agent) may invoke — each with an explicit JSON input schema so access is scoped
 and auditable (P-07, least privilege).
 
-Interop: the catalog speaks **MCP 2025-11-25**. In an ADK deployment these specs are
+Interop: the catalog speaks **MCP 2026-07-28**. In an ADK deployment these specs are
 surfaced to the agent through an ``McpToolset`` connected to an MCP server that fronts the
 domain services; here the adapter only *declares* the governed catalog (declarative,
 no live MCP connection required for listing). The ``mcp`` package is imported lazily and
@@ -21,7 +21,7 @@ from ...config import Settings
 from ...domain.models import ToolSpec
 
 # MCP protocol revision this catalog conforms to.
-MCP_PROTOCOL_VERSION = "2025-11-25"
+MCP_PROTOCOL_VERSION = "2026-07-28"
 
 # Shared schema fragment: regulator / jurisdiction filters reused across tools.
 _FILTERS_SCHEMA: dict[str, Any] = {
@@ -134,7 +134,7 @@ def _build_catalog() -> dict[str, ToolSpec]:
 
 
 class McpToolCatalogAdapter:
-    """Declarative MCP 2025-11-25 catalog of C1's four governed tools."""
+    """Declarative MCP 2026-07-28 catalog of C1's four governed tools."""
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
@@ -153,7 +153,7 @@ class McpToolCatalogAdapter:
     # MCP wire helpers (lazy ``mcp`` import — only when actually used)
     # ------------------------------------------------------------------ #
     def as_mcp_tools(self) -> list[Any]:
-        """Render the catalog as MCP ``Tool`` objects (MCP 2025-11-25 schema).
+        """Render the catalog as MCP ``Tool`` objects (MCP 2026-07-28 schema).
 
         Imported lazily so the catalog can be listed without the ``mcp`` package; only
         callers that need the on-the-wire MCP objects (e.g. an MCP server fronting the
@@ -161,7 +161,7 @@ class McpToolCatalogAdapter:
         """
         from mcp import types as mcp_types  # lazy
 
-        # verify: https://modelcontextprotocol.io/specification/2025-11-25
+        # verify: https://modelcontextprotocol.io/specification/2026-07-28
         return [
             mcp_types.Tool(
                 name=spec.name,

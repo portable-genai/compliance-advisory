@@ -176,7 +176,7 @@ sequence diagram, and the runtime topology.
 
 | Concern | Service (current name) | Identifier |
 |---------|------------------------|------------|
-| Agent framework | ADK (Python) | `google-adk==2.3.0` |
+| Agent framework | ADK (Python) | `google-adk==2.7.1` |
 | Reasoning model | Gemini 3.5 Flash | `gemini-3.5-flash` (thinking=high) |
 | Triage model | Gemini 3.1 Flash-Lite | `gemini-3.1-flash-lite` |
 | Unified SDK | Google GenAI SDK | `google-genai` |
@@ -189,7 +189,7 @@ sequence diagram, and the runtime topology.
 | Audit (WORM) | Cloud Logging locked bucket + Audit Logs | retention 2557 days (~7y); `DATA_READ` enabled |
 | Tracing | Cloud Trace via OpenTelemetry | `opentelemetry-exporter-gcp-trace`; content capture **OFF** |
 | Eval gate | Gen AI evaluation service | `vertexai.Client(...).evals` |
-| Interop | A2A v1.0 + MCP 2025-11-25 | AgentCard `/.well-known/agent-card.json`; ADK `to_a2a`, `McpToolset` |
+| Interop | A2A v1.0 + MCP 2026-07-28 | AgentCard `/.well-known/agent-card.json`; ADK `to_a2a`, `McpToolset` |
 | Freshness ledger | AlloyDB | `google-cloud-alloydb-connector[pg8000]` + SQLAlchemy |
 | Sovereignty | VPC-SC, regional CMEK, Org Policy, Assured Workloads | `asia-southeast1` |
 

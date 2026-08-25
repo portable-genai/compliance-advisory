@@ -34,7 +34,7 @@ Wrap and deploy with the Agent Platform SDK (region pinned to
 
     remote = agent_engines.create(
         build_root_agent(Settings.load()),
-        requirements=["google-adk==2.3.0", "compliance-advisory"],
+        requirements=["google-adk==2.7.1", "compliance-advisory"],
     )  # -> reasoningEngine resource; record it in settings.agent_engine.resource_name
 
 Exposing over A2A: ``to_a2a(build_root_agent(settings))`` produces an A2A app
