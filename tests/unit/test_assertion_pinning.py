@@ -28,9 +28,11 @@ import pytest
 from hex_service_kit import assertion as kit_assertion
 from hex_service_kit.identity import IdentityError as KitIdentityError
 
+from hex_service_kit import federation as kit_federation
+
 from compliance_advisory.adapters.gcp.iap_identity import IapIdentityAdapter
 
-_IAP_ISSUER = "https://cloud.google.com/iap"
+_IAP_ISSUER = kit_federation.IAP_ISSUER
 _AUDIENCE = "/projects/1234567890/global/backendServices/42"
 
 
@@ -76,6 +78,20 @@ class TestTheCommonsRefusalsAreTheOnesBound:
 
     def test_the_claim_pin_is_the_commons_function(self) -> None:
         assert _adapter_module().require_claims is kit_assertion.require_claims
+
+    def test_the_transport_facts_are_the_commons_values(self) -> None:
+        """The header, the issuer and the key set are REBOUND from the kit, not re-declared.
+
+        These three strings were copied into every repository that verifies an IAP assertion,
+        which is fifty-four chances for one of them to be edited alone. Asserting equality
+        against the kit's values means a local re-declaration that drifts fails here rather
+        than in a deployment.
+        """
+        module = _adapter_module()
+
+        assert module._ASSERTION_HEADER == kit_federation.IAP_ASSERTION_HEADER
+        assert module._IAP_ISSUER == kit_federation.IAP_ISSUER
+        assert module._IAP_KEYS_URL == kit_federation.IAP_KEYS_URL
 
 
 class TestTheRefusalsFire:
@@ -186,3 +202,66 @@ def test_the_algorithm_is_pinned_before_the_verifier_runs() -> None:
         f"the algorithm pin is called at line {pinned_at} and the verifier at line "
         f"{verified_at}. A pin after verification never protected the verifier."
     )
+
+
+class TestTheAudienceReadKeepsItsThreeStates:
+    """The audience read must tell an operator WHICH mistake they made.
+
+    ``COMPLIANCE_IAP_AUDIENCE`` has three states and this repository's own ``envread``
+    docstring says so: unset, set-and-empty, set-and-valid. The adapter read it through
+    ``read_env_setting(...).value``, which collapses the first two onto ``""`` -- the exact
+    shape that docstring warns against. Neither state authenticates anybody, so this is a
+    diagnosability defect rather than a permissive audience: an operator who deployed the
+    variable as an empty string was told it "is not configured", and went looking for a
+    missing variable that was in fact present and blank.
+    """
+
+    def _adapter_with_audience(self, monkeypatch: pytest.MonkeyPatch, raw: str | None) -> object:
+        monkeypatch.delenv("COMPLIANCE_IAP_AUDIENCE", raising=False)
+        if raw is not None:
+            monkeypatch.setenv("COMPLIANCE_IAP_AUDIENCE", raw)
+        return IapIdentityAdapter(object())
+
+    def _refusal(self, adapter: object) -> str:
+        from compliance_advisory.domain.identity import IdentityError, RequestContext
+
+        ctx = RequestContext(headers={"x-goog-iap-jwt-assertion": "a.b.c"})
+        with pytest.raises(IdentityError) as caught:
+            adapter.resolve(ctx)  # type: ignore[attr-defined]
+        return str(caught.value)
+
+    def test_an_unset_audience_says_it_is_unset(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        adapter = self._adapter_with_audience(monkeypatch, None)
+
+        assert "not configured" in self._refusal(adapter)
+
+    def test_a_configured_empty_audience_is_not_reported_as_unset(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # RED before the fix: the message read "is not configured", sending an operator to
+        # look for a variable that was present and empty.
+        adapter = self._adapter_with_audience(monkeypatch, "")
+
+        message = self._refusal(adapter)
+
+        assert "empty" in message, f"configured-empty was reported as unset: {message!r}"
+
+    def test_a_whitespace_only_audience_is_not_reported_as_unset(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A deployment template that rendered the variable blank is the common way to get here.
+        adapter = self._adapter_with_audience(monkeypatch, "   ")
+
+        assert "empty" in self._refusal(adapter)
+
+    def test_neither_empty_state_ever_verifies_an_assertion(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The security outcome is identical in both states and must stay identical: an empty
+        # audience is never handed to the verifier, because google-auth documents
+        # ``audience=None`` as "the audience is not verified".
+        for raw in (None, "", "   "):
+            adapter = self._adapter_with_audience(monkeypatch, raw)
+            assert adapter._audience == ""  # type: ignore[attr-defined]
