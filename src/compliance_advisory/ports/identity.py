@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from ..domain.identity import Principal, RequestContext
+from ..domain.identity import IdentityError, Principal, RequestContext
 
 
 @runtime_checkable
@@ -65,3 +65,22 @@ def declared_end_user_auth(adapter: object) -> str:
     if isinstance(declared, str) and declared in END_USER_AUTH_KINDS:
         return declared
     return CLIENT_ASSERTED
+
+
+class EndUserAuthUnavailableError(IdentityError):
+    """This deployment can authenticate NO end user at all, and the message says why.
+
+    A plain :class:`IdentityError` means THIS caller did not authenticate; another one might.
+    This means the bound adapter cannot authenticate anybody: an audience nobody configured, or
+    a verifier that is not installed.
+
+    The distinction is worth a type because the two need different answers. ``get_principal``
+    maps every ``IdentityError`` to a bare 401 carrying "authentication required", which sends
+    an operator hunting for a missing credential when the truth is in the configuration and no
+    credential would have helped. Subclasses carry their own :attr:`http_status` and their own
+    message, and ``api/security.py`` answers with both.
+    """
+
+    #: The status the API answers with. 401 is right where a caller could have authenticated
+    #: and did not; a subclass meaning "nobody can, here" says so with a different code.
+    http_status: int = 401

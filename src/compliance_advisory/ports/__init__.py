@@ -9,7 +9,7 @@ from .corpus import CorpusIngestionPort, CorpusLedgerPort
 from .generation import GroundingPort, LLMPort
 from .governance import AgentRegistryPort, ToolCatalogPort
 from .horizon import HorizonTrackerPort, RegSourceCatalogPort
-from .identity import IdentityPort
+from .identity import EndUserAuthUnavailableError, IdentityPort
 from .inventory import ControlInventoryPort
 from .observability import (
     AuditSinkPort,
@@ -43,6 +43,7 @@ __all__ = [
     "CorpusLedgerPort",
     "CorpusIngestionPort",
     "IdentityPort",
+    "EndUserAuthUnavailableError",
     "ReviewRouterPort",
     "RegSourceCatalogPort",
     "HorizonTrackerPort",
