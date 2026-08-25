@@ -26,9 +26,8 @@ import json as _json
 
 import pytest
 from hex_service_kit import assertion as kit_assertion
-from hex_service_kit.identity import IdentityError as KitIdentityError
-
 from hex_service_kit import federation as kit_federation
+from hex_service_kit.identity import IdentityError as KitIdentityError
 
 from compliance_advisory.adapters.gcp.iap_identity import IapIdentityAdapter
 
@@ -230,9 +229,7 @@ class TestTheAudienceReadKeepsItsThreeStates:
             adapter.resolve(ctx)  # type: ignore[attr-defined]
         return str(caught.value)
 
-    def test_an_unset_audience_says_it_is_unset(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_an_unset_audience_says_it_is_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
         adapter = self._adapter_with_audience(monkeypatch, None)
 
         assert "not configured" in self._refusal(adapter)
