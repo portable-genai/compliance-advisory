@@ -52,7 +52,8 @@ class AgentRuntimeAdapter:
             # verify: https://cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/overview
             client = vertexai.Client(
                 project=self._settings.project_id,
-                location=self._settings.region,
+                # MODEL location, not the compute region.
+                location=self._settings.models.location,
             )
             self._engine = client.agent_engines.get(name=self._resource_name)
         except AttributeError:
@@ -60,7 +61,8 @@ class AgentRuntimeAdapter:
 
             vertexai.init(
                 project=self._settings.project_id,
-                location=self._settings.region,
+                # MODEL location, not the compute region.
+                location=self._settings.models.location,
             )
             self._engine = agent_engines.get(self._resource_name)
         return self._engine
