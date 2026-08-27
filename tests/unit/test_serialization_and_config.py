@@ -147,8 +147,8 @@ def test_settings_load_parses_yaml():
     settings = Settings.load(CONFIG_PATH)
     assert settings.region == "asia-southeast1"
     assert settings.corpus.ttl_days == 7
-    assert settings.models.reasoning == "gemini-3.7-flash"
-    assert settings.models.triage == "gemini-3.1-flash-lite"
+    assert settings.models.reasoning == "gemini-3.5-flash"
+    assert settings.models.triage == "gemini-3.5-flash"
     # adapter map is populated for every port
     assert set(PORT_PROTOCOLS) <= set(settings.adapters)
 

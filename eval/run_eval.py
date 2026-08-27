@@ -411,7 +411,7 @@ class FakeLLMAdapter:
 
     def __init__(self, by_question: dict[str, GoldenExample]) -> None:
         self._by_question = by_question
-        self.model = "gemini-3.7-flash"  # documented reasoning model (thinking=high)
+        self.model = "gemini-3.5-flash"  # documented reasoning model (thinking=high)
 
     def generate(self, request: LlmRequest) -> LlmResponse:
         user = _last_user_text(request)
