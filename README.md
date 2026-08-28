@@ -268,7 +268,7 @@ export COMPLIANCE_KMS_KEY="projects/.../locations/asia-southeast1/keyRings/.../c
 export COMPLIANCE_ALLOYDB_URI="projects/.../locations/asia-southeast1/clusters/.../instances/..."
 gcloud auth application-default login
 
-# Provision infra (fails fast if Agent Search is unavailable in the region):
+# Provision infra (fails fast on an Agent Search location the service does not serve):
 make tf-plan                      # review, then `terraform apply` (see docs/runbook.md)
 make run-api                      # FastAPI on :8080, profile=gcp
 ```
@@ -422,7 +422,7 @@ the gate must pass before a release can be promoted to Agent Runtime. See
 |---------|--------------------|
 | **Server-verified identity** | The API never trusts a client-asserted `actor`: an `IdentityPort` adapter resolves a verified `Principal` per request (seeded personas in `local`, the Cloud IAP signed assertion in `gcp`/`platform`), which supplies the audit actor. Unresolvable identity is a 401. See [`docs/embedding-and-identity.md`](docs/embedding-and-identity.md). |
 | **Embedding surface controls** | CSP `frame-ancestors` (env `COMPLIANCE_FRAME_ANCESTORS`, default `'self'`) limits which parents may iframe the UI; CORS is an explicit env allowlist (`COMPLIANCE_CORS_ORIGINS`, never `*`) with pinned methods/headers. |
-| **Region pin** (`asia-southeast1`) | Every service and SDK call targets the Singapore region; Terraform **fails fast** if Agent Search is unavailable there. No global endpoints (they give no residency guarantee). |
+| **Region pin** (`asia-southeast1`) | Every service and SDK call targets the Singapore region **except Agent Search, which serves no Cloud region at all** and is therefore a stated deviation rather than a pin — see the residency row in [`COMPLIANCE.md`](COMPLIANCE.md). Terraform fails at plan on a retrieval location the service does not serve. |
 | **VPC Service Controls** | All managed services sit inside a service perimeter so data cannot egress to other projects/regions. |
 | **CMEK** (regional) | Customer-managed Cloud KMS keys (`COMPLIANCE_KMS_KEY`) encrypt Agent Search, AlloyDB, and the log bucket. |
 | **PII redaction before model** (**P-04**) | `DlpRedactionAdapter` de-identifies inbound text *before* it reaches the model or any audit/trace sink. |

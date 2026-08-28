@@ -50,7 +50,17 @@ models:
 agent_search:
   data_store_id: compliance-reg-kb
   engine_id: compliance-advisory-engine
-  location: asia-southeast1
+  # NOT the deploy region, and it cannot be. Agent Search serves exactly `global`, `us` and
+  # `eu` and no Cloud region at all, so `asia-southeast1` -- pinned here until 2026-08-27 --
+  # could never provision: the apply fails, or the SDK resolves a hostname that does not
+  # exist. See docs/gcp-service-region-availability.md in org-metadata.
+  #
+  # `global` is a DELIBERATE residency deviation, recorded rather than absorbed: it carries no
+  # residency guarantee, so the index is unlocated while everything around it stays in region.
+  # `us` or `eu` would confine the index to one jurisdiction and is the stronger choice where a
+  # residency obligation bites; an installation under one sets this accordingly. The
+  # gcp.resourceLocations Org Policy must be wide enough to permit whichever is chosen.
+  location: global
   serving_config: default_search
 
 alloydb:
