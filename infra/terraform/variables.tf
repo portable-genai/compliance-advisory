@@ -118,3 +118,57 @@ variable "agent_runtime_refresh_url" {
   type        = string
   default     = ""
 }
+
+variable "agent_search_location" {
+  description = <<-EOT
+    Where the Agent Search data store and engine live. DELIBERATELY NOT var.region.
+
+    Agent Search serves exactly `global`, `us` and `eu` and no Cloud region, so this cannot
+    track the deploy region: doing so is what made the apply impossible before 2026-08-27.
+
+    `global` (the default) carries NO residency guarantee -- the index is unlocated. `us` and
+    `eu` confine it to one jurisdiction and are the stronger choice under a residency
+    obligation. Whichever is chosen, gcp.resourceLocations must be wide enough to permit it,
+    and the residency claim must be stated at that width rather than at var.region's.
+  EOT
+  type        = string
+  default     = "global"
+
+  validation {
+    condition     = contains(["global", "us", "eu"], var.agent_search_location)
+    error_message = "agent_search_location must be one of global, us, eu -- the only locations Agent Search serves."
+  }
+}
+
+variable "resource_location_values" {
+  description = <<-EOT
+    Value groups for the gcp.resourceLocations Org Policy. Empty (the default) derives the
+    strictest form from the deploy region: that region and its sub-locations, nothing else.
+
+    Widen it ONLY where a service this stack genuinely needs has no presence at single-region
+    granularity, and treat the width as the residency claim rather than as plumbing. Two
+    services in this catalog force the question:
+
+      * Agent Search serves `global`, `us` and `eu` and NO Cloud region at all.
+      * Document AI serves the deploy region only once Google grants single-region access,
+        and routes to the `us` multi-region until then.
+
+    Move to the smallest value group that still describes ONE JURISDICTION -- `in:us-locations`
+    keeps every resource inside the United States -- and state the residency claim at that
+    granularity rather than pretending it is still single-region. NEVER list an individual
+    foreign region to unblock one service: that turns a jurisdiction boundary into a list of
+    exceptions nobody can reason about.
+
+    NOT YET VERIFIED BY EXECUTION: whether a `global` Agent Search data store is subject to
+    this constraint at all, or is exempt as a global resource. Confirm at first apply and
+    record the answer rather than guessing; the failure mode if it IS subject is an apply
+    error naming discoveryengine, which is the good kind of failure.
+  EOT
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for value in var.resource_location_values : startswith(value, "in:") || startswith(value, "is:")])
+    error_message = "Each value must be an Org Policy location value group (in:...) or a literal location (is:...)."
+  }
+}

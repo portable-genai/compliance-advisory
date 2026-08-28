@@ -36,7 +36,7 @@ Authoritative stack and decisions: [`SPEC.md`](../SPEC.md). Architecture:
    make tf-plan                       # review the plan
    cd terraform && terraform apply    # provisions Agent Search, AlloyDB, KMS, log bucket (UNLOCKED), VPC-SC
    ```
-   Terraform **fails fast** if Agent Search is unavailable in `asia-southeast1`, this is the
+   Terraform **fails fast** on an Agent Search location the service does not serve, this is the
    region guard (P-01). Do not relax it to a global endpoint; a global endpoint gives no
    residency guarantee.
 
@@ -72,16 +72,21 @@ residency allowlist; both default to `asia-southeast1`, so an unset deploy stays
 and any other region means setting both, which is the deliberate residency review. Everything
 else follows the selected region:
 
-- **Terraform** refuses to provision if Agent Search is not available in the region (no
+- **Terraform** refuses to provision if `agent_search_location` is not one Agent Search serves (no
   silent fallback to a global endpoint, and no RAG-Engine / File-Search production
   fallback, Agent Search is the only production retrieval backend).
 - **Runtime** targets regional service endpoints (e.g. the Model Armor host
   `modelarmor.asia-southeast1.rep.googleapis.com`) and per-service regional CMEK. A
-  misconfiguration that would route to a global endpoint should fail loudly rather than
-  silently weaken residency (P-01).
+  misconfiguration that would route a REGIONAL service to a global endpoint should fail loudly
+  rather than silently weaken residency (P-01).
 
-If a deploy errors with "Agent Search unavailable in asia-southeast1", do **not** switch
-regions or endpoints to work around it, escalate; the residency posture depends on it.
+**Agent Search is the documented exception, not a misconfiguration to escalate.** It serves
+`global`, `us` and `eu` and no Cloud region, so its location is a separate deploy-time input
+(`agent_search_location`) and cannot be in-country at any setting. If a plan errors naming it,
+the fix is to choose among those three deliberately — `us` or `eu` to confine the index to one
+jurisdiction, `global` to accept an unlocated index — and to widen `gcp.resourceLocations` to
+permit the choice. Do NOT "work around it" by pointing another regional service at a global
+endpoint; that is the failure this guard exists to catch.
 
 ---
 
