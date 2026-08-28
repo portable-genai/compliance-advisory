@@ -35,6 +35,7 @@ from fastapi.testclient import TestClient
 from tests.conftest import LOOPBACK_PEER
 
 from compliance_advisory.api import app as app_module
+from compliance_advisory.api import deps
 
 _PROFILE_ENV = "COMPLIANCE_PROFILE"
 _INSECURE_DEMO_ENV = "COMPLIANCE_ALLOW_INSECURE_DEMO"
@@ -100,15 +101,49 @@ def test_the_refusal_names_the_documented_opt_in_so_it_is_actionable() -> None:
 
 
 @pytest.mark.parametrize("path", UNAUTHENTICATED_ROUTES)
-def test_a_loopback_peer_still_gets_the_offline_demo(path: str) -> None:
-    """The other direction. A guard that breaks local development would simply be reverted."""
+def test_a_loopback_peer_still_gets_the_offline_demo(
+    path: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other direction. A guard that breaks local development would simply be reverted.
+
+    The profile is set explicitly, because that is the posture these routes are about. An UNSET
+    profile refuses to construct the seeded-persona adapter, so an identity-bearing route answers
+    401 rather than serving the demo, and this test had been asserting the offline demo of a run
+    that had declined to build one.
+    """
+    monkeypatch.setenv("COMPLIANCE_PROFILE", "local")
+    deps.get_container.cache_clear()
+
     assert TestClient(app_module.app, client=LOOPBACK_PEER).get(path).status_code == 200
+    deps.get_container.cache_clear()
 
 
-def test_the_loopback_peer_still_gets_the_whole_seeded_persona_list() -> None:
+def test_the_loopback_peer_still_gets_the_whole_seeded_persona_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The picker the local UI needs is intact; only the LAN is cut off from it."""
+    monkeypatch.setenv("COMPLIANCE_PROFILE", "local")
+    deps.get_container.cache_clear()
+
     personas = TestClient(app_module.app, client=LOOPBACK_PEER).get("/personas").json()
     assert [p["id"] for p in personas] == ["analyst", "approver", "auditor", "other-tenant"]
+    deps.get_container.cache_clear()
+
+
+def test_an_unset_profile_advertises_no_personas_rather_than_unresolvable_ones(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The other half of the same decision, which nothing had covered.
+
+    Unset is not consent. A run where nobody chose a profile must not hand out a seeded
+    identity, so the picker is empty rather than populated with personas the adapter would
+    refuse to resolve.
+    """
+    monkeypatch.delenv("COMPLIANCE_PROFILE", raising=False)
+    deps.get_container.cache_clear()
+
+    assert TestClient(app_module.app, client=LOOPBACK_PEER).get("/personas").json() == []
+    deps.get_container.cache_clear()
 
 
 def test_a_forwarding_header_disqualifies_even_a_loopback_peer() -> None:
