@@ -43,7 +43,29 @@ _SEVERITY_BY_VALUE: dict[str, Severity] = {s.value: s for s in Severity}
 
 
 def coerce_severity(value: Any, default: Severity = Severity.MEDIUM) -> Severity:
-    """Map a model-emitted severity string to the ``Severity`` enum defensively."""
+    """Map a model-emitted severity string to the ``Severity`` enum defensively.
+
+    **This severity is DECLARED QUALITY: the model produces it, and it is reviewer-facing
+    rather than consequential.** Recorded here because the organization front page claims the
+    model "never produces the number", and a reader who found this line deserves to know
+    exactly how far that claim reaches in this repository.
+
+    Where it goes: onto a checklist gap, which a reviewer reads. `checklist` is listed in
+    `always_review_artifacts`, so `GateReviewPolicy.requires_review` returns True for it before
+    severity is consulted at all. Raising or lowering this label cannot remove a checker, and
+    cannot add one either, because the checker is already unconditional.
+
+    What actually gates review is a different severity: `qa_service._severity_for` derives it
+    from citation metadata by topic keyword, deterministically, and that is the one
+    `requires_review` reads for an answer. The two were easy to confuse from the outside, which
+    is why the distinction is written down here rather than left to be re-derived.
+
+    Two models reading one page of regulation will still label it differently, so this is not
+    something a paired comparison could hold to agreement. `temperature` is pinned at 0.0 so the
+    label is at least reproducible for one model; see
+    `tests/unit/test_grounded_requests_do_not_sample.py`. If this value is ever wired into a
+    decision, it stops being declared quality and belongs in the deterministic domain instead.
+    """
     if isinstance(value, Severity):
         return value
     if isinstance(value, str):
@@ -194,7 +216,7 @@ def build_llm_request(
     model: str | None,
     response_schema: dict | None,
     thinking: ThinkingLevel = ThinkingLevel.HIGH,
-    temperature: float = 0.2,
+    temperature: float = 0.0,
     max_output_tokens: int = 4096,
 ) -> LlmRequest:
     """Assemble an ``LlmRequest`` with a single user message and a system prompt.
