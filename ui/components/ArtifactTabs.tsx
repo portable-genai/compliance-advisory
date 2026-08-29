@@ -91,7 +91,7 @@ export function ArtifactTabs({
     <div className="flex h-full flex-col">
       <div
         role="tablist"
-        aria-label="C1 artifacts"
+        aria-label="Compliance artifacts"
         className="scroll-thin flex items-center gap-1 overflow-x-auto border-b border-ink-200 px-1"
       >
         {TABS.map((t) => {

@@ -8,8 +8,8 @@ import type {
 import { ConfidenceMeter, HumanReviewBanner, SectionLabel } from "./ui";
 
 /**
- * Right-rail governance panel. Surfaces the A1 guardrail verdict (input/output),
- * the A4 eval/confidence signal, PII redaction tallies, and the maker-checker
+ * Right-rail governance panel. Surfaces the guardrail verdict (input/output),
+ * the eval/confidence signal, PII redaction tallies, and the maker-checker
  * banner when the active artifact requires human review.
  */
 export function ObservabilityPanel({
@@ -29,7 +29,7 @@ export function ObservabilityPanel({
       <div className="border-b border-ink-200 px-4 py-3">
         <h2 className="text-sm font-semibold text-ink-900">Observability &amp; Governance</h2>
         <p className="mt-0.5 text-[11px] text-ink-400">
-          A1 guardrail · A4 eval · A5 audit
+          guardrail · eval · audit
         </p>
       </div>
 
@@ -129,7 +129,7 @@ function EvalBlock({ report }: { report: EvalReport }) {
   return (
     <div className="rounded-lg border border-ink-200 bg-white p-3">
       <div className="flex items-center justify-between">
-        <SectionLabel>Eval gate (A4)</SectionLabel>
+        <SectionLabel>Eval gate</SectionLabel>
         <span
           className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold uppercase ring-1 ring-inset ${
             allPassed
