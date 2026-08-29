@@ -1075,12 +1075,20 @@ def run_horizon_offline(
 ) -> tuple[list[EvalMetricResult], int, Path]:
     """Score the horizon metrics by driving the REAL service (local profile).
 
-    Returns ``(results, n_examples, dataset)``. If the horizon golden set is absent the
-    horizon metrics are simply omitted (the rest of the gate still runs); if it is present
-    but the service cannot be built, the metrics score 0 and the gate fails closed.
+    Returns ``(results, n_examples, dataset)``. A MISSING golden set is a hard failure, not
+    an omission: the file is versioned in this repository, so its absence can only mean a
+    rename or a refactor slipped through, and omitting the family would let the gate report
+    PASS on the QA metrics alone while four gated horizon metrics quietly stopped being
+    scored. That is the same fail-open shape ``load_golden`` already refuses for the primary
+    dataset. If the file is present but the service cannot be built, the metrics score 0 and
+    the gate fails closed.
     """
     if not dataset.exists():
-        return [], 0, dataset
+        raise SystemExit(
+            f"{dataset}: horizon golden dataset is missing. Four gated metrics "
+            f"({', '.join(HORIZON_THRESHOLDS)}) are scored from it, and a run without them "
+            "would report PASS over a subset of the gate."
+        )
     examples = load_golden_horizon(dataset)
     print(
         f"Running horizon-scanning metrics over {len(examples)} golden corpus changes "
@@ -1151,11 +1159,9 @@ def run_offline(dataset: Path, thresholds: dict[str, float]) -> EvalReport:
     horizon_results, n_horizon, horizon_dataset = run_horizon_offline(thresholds, _result)
 
     results = tuple(qa_results + mapping_results + horizon_results)
-    labels = [str(dataset)]
-    if mapping_results:
-        labels.append(str(mapping_dataset))
-    if horizon_results:
-        labels.append(str(horizon_dataset))
+    # Every family is mandatory: a missing golden set exits above rather than dropping its
+    # metrics, so the report always names all three datasets it was actually scored over.
+    labels = [str(dataset), str(mapping_dataset), str(horizon_dataset)]
     return EvalReport(
         dataset=" + ".join(labels),
         results=results,
@@ -1170,12 +1176,20 @@ def run_mapping_offline(
 ) -> tuple[list[EvalMetricResult], int, Path]:
     """Score the control-mapping metrics by driving the REAL merged service (local profile).
 
-    Returns ``(results, n_examples, dataset)``. If the mapping golden set is absent the
-    mapping metrics are simply omitted (the QA gate still runs); if the golden set is present
+    Returns ``(results, n_examples, dataset)``. A MISSING golden set is a hard failure, not
+    an omission: the file is versioned in this repository, so its absence can only mean a
+    rename or a refactor slipped through, and omitting the family would drop
+    ``mapping_safety`` (threshold 0.99, the strictest bar in the gate) along with the other
+    three mapping metrics while the run still reported PASS. If the golden set is present
     but the merged service cannot be built, the metrics score 0 and the gate fails closed.
     """
     if not dataset.exists():
-        return [], 0, dataset
+        raise SystemExit(
+            f"{dataset}: mapping golden dataset is missing. Four gated metrics "
+            f"({', '.join(MAPPING_THRESHOLDS)}) are scored from it, including "
+            "mapping_safety, and a run without them would report PASS over a subset of the "
+            "gate."
+        )
     examples = load_golden_mappings(dataset)
     service = _make_mapping_service(examples)
     print(
