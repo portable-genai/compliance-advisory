@@ -55,9 +55,9 @@ BENIGN_TEXT = "Summarise the cloud outsourcing controls MAS expects before onboa
 
 # The platform clients' localhost defaults (SPEC section 6): mocked, never actually served.
 # These mirror the ``_DEFAULT_URL`` in each ``adapters/platform/remote_*`` module.
-HRZ_GUARDRAIL = "http://localhost:8081"
-HRZ_OBSERVABILITY = "http://localhost:8085"
-HRZ_REGISTRY = "http://localhost:8083"
+GUARDRAIL_GATEWAY = "http://localhost:8081"
+OBSERVABILITY = "http://localhost:8085"
+AGENT_REGISTRY = "http://localhost:8083"
 
 
 def _settings(profile: str) -> Settings:
@@ -89,7 +89,7 @@ def test_guardrail_parity_same_verdict_every_implementation(text: str, should_al
     with respx.mock:
         # Hrz1 gateway (Model Armor backed) serves its documented /v1/guardrail/screen
         # answer for the same request; the local heuristic reaches the same verdict.
-        respx.post(f"{HRZ_GUARDRAIL}/v1/guardrail/screen").respond(
+        respx.post(f"{GUARDRAIL_GATEWAY}/v1/guardrail/screen").respond(
             200,
             json={
                 "allowed": should_allow,
@@ -148,7 +148,7 @@ def test_audit_parity_identical_payload_at_every_sink():
     assert local_audit.read_all() == [expected]
 
     with respx.mock:
-        route = respx.post(f"{HRZ_OBSERVABILITY}/v1/audit").respond(202)
+        route = respx.post(f"{OBSERVABILITY}/v1/audit").respond(202)
         _adapter("audit", "platform").record(event)
         posted = json.loads(route.calls.last.request.content)
     # The platform sink receives the byte-identical record the local sink stored.
@@ -177,9 +177,9 @@ def test_registry_parity_same_card_across_implementations():
     assert local_card is not None, "local registry did not return the registered card"
 
     with respx.mock:
-        respx.post(f"{HRZ_REGISTRY}/v1/agents").respond(201)
+        respx.post(f"{AGENT_REGISTRY}/v1/agents").respond(201)
         # Hrz3 serves back the same card shape for the same name (SPEC section 6).
-        respx.get(f"{HRZ_REGISTRY}/v1/agents/{card.name}").respond(200, json=to_jsonable(card))
+        respx.get(f"{AGENT_REGISTRY}/v1/agents/{card.name}").respond(200, json=to_jsonable(card))
         remote_registry = _adapter("registry", "platform")
         remote_registry.register(card)
         remote_card = remote_registry.get(card.name)

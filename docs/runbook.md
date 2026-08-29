@@ -155,7 +155,7 @@ endpoint; that is the failure this guard exists to catch.
   Agent Runtime `reasoningEngine`. The WORM audit bucket and ledger persist independently, so
   no audit history is lost.
 - **Pause horizon escalations:** horizon assessments route to Hrz7 through the same
-  `ReviewRouterPort` as every other escalation. Unsetting `HRZ_HUMAN_REVIEW_URL` stops the
+  `ReviewRouterPort` as every other escalation. Unsetting `HUMAN_REVIEW_URL` stops the
   submissions; the ESCALATED audit rows are still written, so nothing is lost, and the
   scans keep returning their decisions.
 - **Block a category:** tighten the Model Armor template (`model_armor.template_id`) to deny
