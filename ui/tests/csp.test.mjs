@@ -20,6 +20,13 @@ import {
   generateNonce,
 } from "../lib/csp.mjs";
 
+/**
+ * The environment a deployment runs under. Every assertion about the EXACT policy string passes
+ * this, because the dev branch of `contentSecurityPolicy` deliberately widens two directives and
+ * an assertion that did not say which side of that branch it meant would pin neither.
+ */
+const PROD = { NODE_ENV: "production" };
+
 /** Split a policy string into a directive -> value map. */
 function directives(csp) {
   return new Map(
@@ -66,10 +73,36 @@ test("no directive is ever empty, whatever the frame-ancestors env holds", () =>
 
 test("script-src takes the nonce and strict-dynamic only when a nonce is supplied", () => {
   assert.equal(
-    directives(contentSecurityPolicy({}, "abc123")).get("script-src"),
+    directives(contentSecurityPolicy(PROD, "abc123")).get("script-src"),
     "'self' 'nonce-abc123' 'strict-dynamic'",
   );
-  assert.equal(directives(contentSecurityPolicy({})).get("script-src"), "'self'");
+  assert.equal(directives(contentSecurityPolicy(PROD)).get("script-src"), "'self'");
+});
+
+test("the dev server gets eval and a websocket, and a production build gets neither", () => {
+  // The console that ships is the production one, so this is the assertion that guards the
+  // posture: `'unsafe-eval'` is the allowance an injected script most wants back, and it must be
+  // unreachable from anything `next build` produces.
+  const production = contentSecurityPolicy(
+    { ...PROD, NEXT_PUBLIC_API_BASE: "https://api.bank.example" },
+    "abc123",
+  );
+  assert.doesNotMatch(production, /unsafe-eval/);
+  assert.doesNotMatch(production, /ws:/);
+  assert.doesNotMatch(production, /wss:/);
+
+  // The other half, and the defect this branch was added for: `npm run dev` compiles with
+  // `eval` and opens an HMR websocket, so the strict policy let the page render and never
+  // hydrate. NODE_ENV unset lands on the dev branch too, which is the state `node --test` and
+  // every editor tool run under.
+  for (const env of [{ NODE_ENV: "development" }, {}]) {
+    const development = directives(contentSecurityPolicy(env, "abc123"));
+    assert.match(development.get("script-src"), /'unsafe-eval'/);
+    assert.match(development.get("connect-src"), /ws: wss:/);
+    // The relaxation is additive: the nonce and strict-dynamic still govern what may run.
+    assert.match(development.get("script-src"), /'nonce-abc123' 'strict-dynamic'/);
+    assert.doesNotMatch(development.get("script-src"), /unsafe-inline/);
+  }
 });
 
 test("frame-ancestors is three-state, mirroring the service's _frame_ancestors", () => {
@@ -94,7 +127,10 @@ test("X-Frame-Options is sent only for the two policies it can express", () => {
 
 test("connect-src widens to the API ORIGIN, not the full API URL", () => {
   const found = directives(
-    contentSecurityPolicy({ NEXT_PUBLIC_API_BASE: "https://api.bank.example/v1/ask" }, "n"),
+    contentSecurityPolicy(
+      { ...PROD, NEXT_PUBLIC_API_BASE: "https://api.bank.example/v1/ask" },
+      "n",
+    ),
   );
   assert.equal(found.get("connect-src"), "'self' https://api.bank.example");
 });
@@ -104,7 +140,9 @@ test("a rooted API base stays same-origin rather than being refused", () => {
   // already covered by 'self', so it widens nothing, and refusing it answered 500 on a working
   // deployment. What must never happen is the value being dropped while it names a real origin,
   // which is the case below.
-  const map = directives(contentSecurityPolicy({ NEXT_PUBLIC_API_BASE: "/apps/rsk1/api" }, "n"));
+  const map = directives(
+    contentSecurityPolicy({ ...PROD, NEXT_PUBLIC_API_BASE: "/apps/rsk1/api" }, "n"),
+  );
   assert.equal(map.get("connect-src"), "'self'");
 });
 

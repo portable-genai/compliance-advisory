@@ -159,11 +159,14 @@ The real Next.js console talking to the local API:
 # Terminal 1 - the API on the local profile (no cloud)
 make run-api PROFILE=local            # FastAPI on :8080
 
-# Terminal 2 - the console; point it at the local API (default is :8000)
-cd ui && cp .env.local.example .env.local
-# set NEXT_PUBLIC_API_BASE=http://localhost:8080 in .env.local
-NEXT_PUBLIC_API_BASE=http://localhost:8080 make run-ui   # http://localhost:3000
+# Terminal 2 - the console, built and served the way it ships (its default API is :8000)
+cd ui && npm install
+export NEXT_PUBLIC_API_BASE=http://localhost:8080   # inlined at build time, read again at run time
+npm run build && npm run start                      # http://localhost:3000
 ```
+
+Every demo runs against a production build, never a development server. `make run-ui` is the
+developer loop with hot reload, and it is not what a presenter shows.
 
 Open `http://localhost:3000`, pick the **MAS** regulator filter, ask the cloud-outsourcing
 question, then switch the **Answer | Checklist | Test Cases | Regulator Questions** tabs.
@@ -263,7 +266,9 @@ curl -s localhost:8080/personas | python -m json.tool
 Or the browser console (talks to the API on :8080) - see [`ui/README.md`](ui/README.md):
 
 ```bash
-NEXT_PUBLIC_API_BASE=http://localhost:8080 make run-ui     # http://localhost:3000
+cd ui && npm install
+export NEXT_PUBLIC_API_BASE=http://localhost:8080
+npm run build && npm run start                             # http://localhost:3000
 ```
 
 **What to highlight:** every claim carries a regulator + version + **page** citation; PII
@@ -430,7 +435,7 @@ COMPLIANCE_PROFILE=local compliance horizon track --open-only
 | CLI exits 2 with "not available under profile 'onprem'" | You're on `COMPLIANCE_PROFILE=onprem` (fail-fast placeholders). Use `local` (Demo A) or `gcp` (Demo B). |
 | GCP deploy / region / VPC-SC errors | See [`docs/runbook.md`](docs/runbook.md). |
 
-**Stop / clean up:** Ctrl-C the demo server, `make run-api` and `make run-ui`. The local
+**Stop / clean up:** Ctrl-C the demo server, `make run-api` and the console. The local
 stores are in-memory for the demo scripts, so nothing persists. For GCP, scale the
 deployment to zero or remove the app SA's model-access role
 ([runbook kill-switch](docs/runbook.md#kill-switch)) - the audit trail stays intact.
