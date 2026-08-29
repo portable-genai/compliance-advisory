@@ -18,7 +18,7 @@ TF_DIR      := infra/terraform
 
 export COMPLIANCE_PROFILE := $(PROFILE)
 
-DEMO_PORT   ?= 8088
+DEMO_PORT   ?= 8122
 
 .DEFAULT_GOAL := help
 .PHONY: help install install-gcp fmt lint test eval check ui-install ui-check smoke-local run-api run-ui tf-validate tf-plan clean demo demo-selftest demo-server

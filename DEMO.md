@@ -112,7 +112,7 @@ before performing it, so you control the pace. (One-time: `pip install playwrigh
 playwright install chromium`.)
 
 ```bash
-# Terminal 1 - the live demo server (http://localhost:8088)
+# Terminal 1 - the live demo server (http://localhost:8122)
 source .venv/bin/activate
 PYTHONPATH=src:tests python scripts/compliance_demo_server.py
 
@@ -147,10 +147,10 @@ Drive the demo server yourself, or click through the real console.
 The demo server (one process, no Node):
 
 ```bash
-PYTHONPATH=src:tests python scripts/compliance_demo_server.py     # http://localhost:8088
+PYTHONPATH=src:tests python scripts/compliance_demo_server.py     # http://localhost:8122
 ```
 
-Open `http://localhost:8088` and click **Next ▶** to reveal each artifact, **Restart** to
+Open `http://localhost:8122` and click **Next ▶** to reveal each artifact, **Restart** to
 reset. Same five steps as above.
 
 The real Next.js console talking to the local API:
@@ -431,7 +431,7 @@ COMPLIANCE_PROFILE=local compliance horizon track --open-only
 | No display for the headed walkthrough | Use 2.2 (manual browser) on a machine with a display, or `HEADLESS=1 DEMO_AUTO=1 python scripts/compliance_demo_playwright.py` to self-run. |
 | "Cannot reach the demo server" | Start 2.1 Terminal 1 first; or set `DEMO_URL` if you changed `--port`. |
 | Console health pill shows "down" | Set `NEXT_PUBLIC_API_BASE=http://localhost:8080` (the console defaults to :8000; the API serves on :8080). |
-| Port 8088 / 8080 / 3000 in use | `python scripts/compliance_demo_server.py --port 9000` (then `DEMO_URL=http://127.0.0.1:9000`); API port via `make run-api API_PORT=...`. |
+| Port 8122 / 8080 / 3000 in use | `python scripts/compliance_demo_server.py --port 9000` (then `DEMO_URL=http://127.0.0.1:9000`); API port via `make run-api API_PORT=...`. |
 | CLI exits 2 with "not available under profile 'onprem'" | You're on `COMPLIANCE_PROFILE=onprem` (fail-fast placeholders). Use `local` (Demo A) or `gcp` (Demo B). |
 | GCP deploy / region / VPC-SC errors | See [`docs/runbook.md`](docs/runbook.md). |
 
