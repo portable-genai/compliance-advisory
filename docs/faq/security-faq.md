@@ -37,8 +37,8 @@ subset-match filtering at that point.
 The platform adapters source the shared `hex_service_kit.s2s` via `adapters/platform/_s2s.py`.
 All four delegates (`remote_audit`, `remote_guardrail`, `remote_registry`, `remote_evaluation`)
 validate their base URL at construction (https-only outside loopback, rejected otherwise),
-attach an S2S bearer from `HRZ_S2S_TOKEN`, and propagate the verified end-user actor as a
-signed header (`HRZ_S2S_SIGNING_KEY`, headers `X-Ca-Actor` / `-Sig`) rather than a trust-me
+attach an S2S bearer from `S2S_TOKEN`, and propagate the verified end-user actor as a
+signed header (`S2S_SIGNING_KEY`, headers `X-Ca-Actor` / `-Sig`) rather than a trust-me
 JSON field. The receiving platform services own verification.
 
 ### Is the demo/dev server safe? Does anything bind 0.0.0.0 by default?
@@ -82,7 +82,7 @@ the lockfiles.
 ### Where are secrets? Are any committed?
 
 No secret values are in the repo. `config/settings.yaml` stores only the **names** of env
-vars holding secrets (e.g. `COMPLIANCE_KMS_KEY`, `HRZ_S2S_TOKEN`, the DLP template envs) and
+vars holding secrets (e.g. `COMPLIANCE_KMS_KEY`, `S2S_TOKEN`, the DLP template envs) and
 resource ids; values are read at construction time and never logged. A literal-secret grep
 over `config/` is clean, and every fixture is obviously-fictional.
 
