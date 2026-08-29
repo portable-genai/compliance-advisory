@@ -10,7 +10,7 @@ import "./globals.css";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "C1 Compliance Assistant",
+  title: "Compliance Assistant",
   description:
     "Grounded RAG + agentic assistant for Compliance/Risk teams at APAC banks (MAS / HKMA / APRA / FSA).",
 };
