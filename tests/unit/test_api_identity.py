@@ -111,6 +111,10 @@ def test_secure_profile_adds_hsts(
         lambda: SimpleNamespace(
             exposure_profile=profile,
             profile=profile,
+            # /healthz states the provenance too; these tests are about the HSTS header, so
+            # the stand-in carries the fields rather than the route being made tolerant.
+            runtime="gcp",
+            generator_model="gemini-3.5-flash",
             region="asia-southeast1",
         ),
     )
@@ -130,6 +134,8 @@ def test_unconsented_profile_does_not_claim_hsts(
             exposure_profile="unconfigured",
             profile="local",
             profile_explicit=False,
+            runtime="local",
+            generator_model="deterministic-offline-stub",
             region="asia-southeast1",
         ),
     )
@@ -145,7 +151,13 @@ def test_live_plain_http_profile_does_not_claim_hsts(
     monkeypatch.setattr(
         deps,
         "get_settings",
-        lambda: SimpleNamespace(exposure_profile="live", profile="live", region="asia-southeast1"),
+        lambda: SimpleNamespace(
+            exposure_profile="live",
+            profile="live",
+            runtime="local",
+            generator_model="gemini-3.5-flash",
+            region="asia-southeast1",
+        ),
     )
     response = client.get("/healthz")
     assert "Strict-Transport-Security" not in response.headers

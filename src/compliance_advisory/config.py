@@ -158,6 +158,13 @@ def _interpolate(value: Any) -> Any:
     return value
 
 
+#: The profiles whose runtime is a managed cloud, for :attr:`Settings.runtime`. ``live`` is
+#: NOT one: since 2026-08-30 its models are the Gemini API, but the process, the index and
+#: the audit trail are all on the operator's machine, and the banner states WHERE while the
+#: model half states WHOSE. ``onprem`` is not one either.
+_MANAGED_PROFILES: frozenset[str] = frozenset({"gcp", "platform"})
+
+
 @dataclass(frozen=True)
 class ModelSettings:
     #: The Vertex location the model client calls, NOT the compute region. Gemini 3
@@ -245,24 +252,21 @@ class LocalSettings:
 
 @dataclass(frozen=True)
 class LiveSettings:
-    """The ``live`` profile's local model server (real inference on this machine).
+    """The ``live`` profile's generation budget (the model itself is the Gemini API).
 
-    Points at any OpenAI-compatible ``/chat/completions`` endpoint (MLX, Ollama, vLLM,
-    llama.cpp). The live profile pairs this generator with the REAL regulatory corpus
-    ingested by ``pipelines.refresh_job``; the deterministic local LLM and the fictional
-    seed passages never appear under it.
+    The profile carries no model-server settings. It pairs Gemini generation with the
+    REAL regulatory corpus ingested by ``pipelines.refresh_job`` from the regulators' own
+    published sources, so it already cannot be kept current without leaving the data
+    centre; a laptop generator beside that would be a local-model claim the use case
+    cannot support (org decision, 2026-08-30). Requires GOOGLE_CLOUD_PROJECT + ADC. The
+    deterministic local LLM and the fictional seed passages never appear under it.
     """
 
-    llm_url: str = "http://127.0.0.1:8001/chat/completions"
-    llm_model: str = "mlx-community/gemma-4-26b-a4b-it-8bit"
-    timeout_seconds: float = 240.0
     max_output_tokens: int = 2048
 
 
 def _live_settings(raw: dict[str, Any]) -> LiveSettings:
     """Build LiveSettings with numeric coercion (env interpolation yields strings)."""
-    if "timeout_seconds" in raw:
-        raw["timeout_seconds"] = float(raw["timeout_seconds"])
     if "max_output_tokens" in raw:
         raw["max_output_tokens"] = int(raw["max_output_tokens"])
     return LiveSettings(**raw)
@@ -379,6 +383,39 @@ class Settings:
 
     def __post_init__(self) -> None:
         _validate_profile(self.profile)
+
+    @property
+    def runtime(self) -> str:
+        """Where this process is running, as the UI banner states it: ``gcp`` or ``local``.
+
+        Derived from the profile, never sniffed from the environment. A console that read
+        its runtime from ``window.location`` would be right until the deployment served
+        through a proxy and wrong silently after that, so the service is the one asked.
+        ``onprem`` reads ``local`` deliberately: it runs on the adopter's own iron, and
+        "on GCP" is the one sentence that deployment must never print.
+        """
+        return "gcp" if self.profile in _MANAGED_PROFILES else "local"
+
+    @property
+    def generator_model(self) -> str:
+        """Which model answers, for the UI banner (org decision, 2026-08-30).
+
+        Read off the LLM binding the container will actually build, not from a second
+        field someone has to remember to update. A repo that rebinds ``llm`` for a profile
+        changes what the banner says in the same edit, which is the only way the two stay
+        true to each other: a settings string would be a claim ABOUT the binding rather
+        than the binding.
+        """
+        binding = self.adapters.get("llm", {}).get(self.profile, "")
+        _, _, class_name = binding.partition(":")
+        if class_name == "GeminiLLMAdapter":
+            models = self.models
+            return models.hard_reasoning if models.use_hard_reasoning else models.reasoning
+        if class_name == "OnPremLLMAdapter":
+            # The on-prem adapter is a fail-fast migration placeholder: it raises rather
+            # than generating. Naming a model here would advertise one that never answers.
+            return "onprem-not-implemented"
+        return "deterministic-offline-stub"
 
     @property
     def exposure_profile(self) -> str:

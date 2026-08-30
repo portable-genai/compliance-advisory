@@ -209,15 +209,14 @@ horizon:
   default_owner: compliance-office
   review_band: medium           # at or above this band a change must be human-reviewed
 
-# The `live` profile's local model server: real inference on the operator's own machine
-# (MLX / Ollama / vLLM / llama.cpp, any OpenAI-compatible /chat/completions endpoint).
-# live pairs this generator with the REAL regulatory corpus ingested by
-# `python -m compliance_advisory.pipelines.refresh_job --full`; the fictional local
-# seed never appears under it.
+# The `live` profile: the REAL regulatory corpus, every model call the Gemini API.
+# There is deliberately NO local model server. The corpus is fetched from the regulators'
+# own published sources by
+# `python -m compliance_advisory.pipelines.refresh_job --full`, so this profile already
+# cannot be kept current without leaving the data centre, and a local-model generator
+# beside that would describe a deployment nobody would buy (org decision, 2026-08-30).
+# Needs GOOGLE_CLOUD_PROJECT + ADC. The fictional local seed never appears under it.
 live:
-  llm_url: ${COMPLIANCE_LIVE_LLM_URL:-http://127.0.0.1:8001/chat/completions}
-  llm_model: ${COMPLIANCE_LIVE_LLM_MODEL:-mlx-community/gemma-4-26b-a4b-it-8bit}
-  timeout_seconds: ${COMPLIANCE_LIVE_TIMEOUT:-240}
   max_output_tokens: ${COMPLIANCE_LIVE_MAX_TOKENS:-2048}
 
 # ----------------------------------------------------------------------------- #
@@ -277,7 +276,7 @@ adapters:
     gcp: compliance_advisory.adapters.gcp.gemini_llm:GeminiLLMAdapter
     platform: compliance_advisory.adapters.gcp.gemini_llm:GeminiLLMAdapter
     local: compliance_advisory.adapters.local.llm:LocalDeterministicLLMAdapter
-    live: compliance_advisory.adapters.live.llm:GemmaLocalLLMAdapter
+    live: compliance_advisory.adapters.gcp.gemini_llm:GeminiLLMAdapter
     onprem: compliance_advisory.adapters.onprem.llm:OnPremLLMAdapter
   grounding:
     gcp: compliance_advisory.adapters.gcp.gemini_grounding:GeminiGoogleSearchGroundingAdapter
