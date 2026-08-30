@@ -7,7 +7,7 @@
  *   POST /testcases            -> TestCase[]
  *   POST /regulator-questions  -> RegulatorQuestion[]
  *   GET  /corpus/status        -> FreshnessRecord[]
- *   GET  /healthz              -> { status: "ok", profile, region }
+ *   GET  /healthz              -> { status: "ok", profile, runtime, generator_model, region }
  *   GET  /personas             -> Persona[] (local profile only; empty otherwise)
  *
  * The four POST artifacts MAY arrive either bare (just the domain object) or
@@ -372,6 +372,10 @@ export interface HealthStatus {
   ok: boolean;
   /** Active backend profile ("local" | "gcp" | "platform" | "onprem" | ""). */
   profile: string;
+  /** Where the service runs ("gcp" | "local" | ""), for the provenance banner. */
+  runtime: string;
+  /** Which model answers, or the deterministic stub's name. Empty when unknown. */
+  generatorModel: string;
   raw: unknown;
 }
 
@@ -381,19 +385,40 @@ export async function healthz(signal?: AbortSignal): Promise<HealthStatus> {
       method: "GET",
       signal: withTimeout(signal, 8_000),
     });
-    if (!res.ok) return { ok: false, profile: "", raw: { status: res.status } };
+    if (!res.ok)
+      return {
+        ok: false,
+        profile: "",
+        runtime: "",
+        generatorModel: "",
+        raw: { status: res.status },
+      };
     const raw = await res.json().catch(() => ({}));
     const body =
       raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
     const status = body.status;
     const profile = typeof body.profile === "string" ? body.profile : "";
+    // Read defensively, exactly as `profile` is. An older backend that predates the
+    // provenance fields answers "" here, and the banner renders nothing rather than
+    // asserting a runtime it was never told.
+    const runtime = typeof body.runtime === "string" ? body.runtime : "";
+    const generatorModel =
+      typeof body.generator_model === "string" ? body.generator_model : "";
     return {
       ok: status === undefined ? res.ok : status === "ok",
       profile,
+      runtime,
+      generatorModel,
       raw,
     };
   } catch (e) {
-    return { ok: false, profile: "", raw: { error: String(e) } };
+    return {
+      ok: false,
+      profile: "",
+      runtime: "",
+      generatorModel: "",
+      raw: { error: String(e) },
+    };
   }
 }
 

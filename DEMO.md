@@ -26,9 +26,9 @@ Step-by-step scripts for demoing Rsk1 four ways:
 - **Demo D - The REAL corpus under the `live` profile** (the audience-facing demo): the
   same four artifacts grounded on the **real public instruments** (MAS TRM / Outsourcing /
   FEAT, APRA CPS 230 / CPG 230 / CPS 234, JFSA AI discussion papers, BCBS operational
-  resilience, NIST AI RMF) fetched from the regulators' own sites, with generation on a
-  local Gemma model server. Audience questions are typed live; audience documents are
-  added through the corpus upload (template downloadable in the UI).
+  resilience, NIST AI RMF) fetched from the regulators' own sites, with generation by
+  the Gemini API. Audience questions are typed live; audience documents are added
+  through the corpus upload (template downloadable in the UI).
 
 > Demo A / B / C run on a synthetic **fictional** corpus (clearly-invented MAS / HKMA /
 > APRA passages). Do not rely on it as the real instruments, and do not run against live
@@ -44,11 +44,16 @@ Step-by-step scripts for demoing Rsk1 four ways:
 #    those four sources (save the PDF from a browser; everything else ingests directly).
 python -m compliance_advisory.pipelines.refresh_job --full
 
-# 2. Start a local OpenAI-compatible model server on :8001 (MLX / Ollama / vLLM).
+# 2. There is no local model server to start. Every model call in this profile is the
+#    Gemini API, because the corpus itself is fetched from the regulators' own sites and
+#    the profile cannot be kept current without leaving the data centre.
 
-# 3. Serve under the live profile.
-COMPLIANCE_PROFILE=live python -m compliance_advisory.api.app
+# 3. Serve under the live profile (generation needs a GCP project + application-default
+#    credentials).
+GOOGLE_CLOUD_PROJECT=<project> COMPLIANCE_PROFILE=live python -m compliance_advisory.api.app
 ```
+
+The banner at the top of every UI page states the runtime and the answering model.
 
 Then ask anything through the UI or `POST /ask`; answers cite real source ids, real page
 numbers and the regulators' own URLs. To add an audience document:
