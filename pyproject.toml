@@ -50,6 +50,12 @@ gcp = [
   "google-cloud-discoveryengine>=0.13",
   "google-cloud-dlp>=3.20",
   "google-cloud-logging>=3.11",
+  # ControlInventoryPort (scc_inventory.py) observes posture across all three:
+  # SCC findings, Asset Inventory and Assured Workloads. The Assured Workloads
+  # distribution is hyphenated; the module it ships is `assuredworkloads_v1`.
+  "google-cloud-securitycenter>=1.46",
+  "google-cloud-asset>=4.4",
+  "google-cloud-assured-workloads>=2.4",
   "opentelemetry-sdk>=1.27",
   "opentelemetry-exporter-gcp-trace>=1.7",
   "google-cloud-alloydb-connector[pg8000]>=1.4",

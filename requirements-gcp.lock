@@ -123,16 +123,22 @@ google-adk==2.7.1
 google-api-core==2.34.0
     # via
     #   a2a-sdk
+    #   google-cloud-access-context-manager
     #   google-cloud-aiplatform
     #   google-cloud-alloydb
     #   google-cloud-alloydb-connector
     #   google-cloud-appengine-logging
+    #   google-cloud-asset
+    #   google-cloud-assured-workloads
     #   google-cloud-bigquery
     #   google-cloud-core
     #   google-cloud-discoveryengine
     #   google-cloud-dlp
     #   google-cloud-logging
+    #   google-cloud-org-policy
+    #   google-cloud-os-config
     #   google-cloud-resource-manager
+    #   google-cloud-securitycenter
     #   google-cloud-storage
     #   google-cloud-trace
 google-auth==2.57.0
@@ -143,15 +149,22 @@ google-auth==2.57.0
     #   google-cloud-alloydb
     #   google-cloud-alloydb-connector
     #   google-cloud-appengine-logging
+    #   google-cloud-asset
+    #   google-cloud-assured-workloads
     #   google-cloud-bigquery
     #   google-cloud-core
     #   google-cloud-discoveryengine
     #   google-cloud-dlp
     #   google-cloud-logging
+    #   google-cloud-org-policy
+    #   google-cloud-os-config
     #   google-cloud-resource-manager
+    #   google-cloud-securitycenter
     #   google-cloud-storage
     #   google-cloud-trace
     #   google-genai
+google-cloud-access-context-manager==0.6.1
+    # via google-cloud-asset
 google-cloud-aiplatform==1.165.1
     # via compliance-advisory (pyproject.toml)
 google-cloud-alloydb==0.11.1
@@ -160,6 +173,10 @@ google-cloud-alloydb-connector==1.13.1
     # via compliance-advisory (pyproject.toml)
 google-cloud-appengine-logging==1.10.0
     # via google-cloud-logging
+google-cloud-asset==4.4.0
+    # via compliance-advisory (pyproject.toml)
+google-cloud-assured-workloads==2.4.0
+    # via compliance-advisory (pyproject.toml)
 google-cloud-audit-log==0.6.2
     # via google-cloud-logging
 google-cloud-bigquery==3.44.0
@@ -178,8 +195,14 @@ google-cloud-logging==3.16.3
     #   compliance-advisory (pyproject.toml)
     #   google-cloud-aiplatform
     #   opentelemetry-exporter-gcp-logging
+google-cloud-org-policy==1.18.0
+    # via google-cloud-asset
+google-cloud-os-config==1.25.0
+    # via google-cloud-asset
 google-cloud-resource-manager==1.18.0
     # via google-cloud-aiplatform
+google-cloud-securitycenter==1.46.0
+    # via compliance-advisory (pyproject.toml)
 google-cloud-storage==3.13.1
     # via google-cloud-aiplatform
 google-cloud-trace==1.20.0
@@ -212,18 +235,25 @@ greenlet==3.5.5 ; platform_machine == 'AMD64' or platform_machine == 'WIN32' or 
 grpc-google-iam-v1==0.14.5
     # via
     #   google-cloud-alloydb
+    #   google-cloud-asset
     #   google-cloud-discoveryengine
     #   google-cloud-logging
     #   google-cloud-resource-manager
+    #   google-cloud-securitycenter
 grpcio==1.83.0
     # via
     #   google-api-core
     #   google-cloud-alloydb
     #   google-cloud-appengine-logging
+    #   google-cloud-asset
+    #   google-cloud-assured-workloads
     #   google-cloud-discoveryengine
     #   google-cloud-dlp
     #   google-cloud-logging
+    #   google-cloud-org-policy
+    #   google-cloud-os-config
     #   google-cloud-resource-manager
+    #   google-cloud-securitycenter
     #   google-cloud-trace
     #   googleapis-common-protos
     #   grpc-google-iam-v1
@@ -374,24 +404,35 @@ proto-plus==1.28.3
     #   google-cloud-aiplatform
     #   google-cloud-alloydb
     #   google-cloud-appengine-logging
+    #   google-cloud-asset
+    #   google-cloud-assured-workloads
     #   google-cloud-discoveryengine
     #   google-cloud-dlp
     #   google-cloud-logging
+    #   google-cloud-org-policy
+    #   google-cloud-os-config
     #   google-cloud-resource-manager
+    #   google-cloud-securitycenter
     #   google-cloud-trace
 protobuf==6.33.6
     # via
     #   a2a-sdk
     #   google-api-core
+    #   google-cloud-access-context-manager
     #   google-cloud-aiplatform
     #   google-cloud-alloydb
     #   google-cloud-alloydb-connector
     #   google-cloud-appengine-logging
+    #   google-cloud-asset
+    #   google-cloud-assured-workloads
     #   google-cloud-audit-log
     #   google-cloud-discoveryengine
     #   google-cloud-dlp
     #   google-cloud-logging
+    #   google-cloud-org-policy
+    #   google-cloud-os-config
     #   google-cloud-resource-manager
+    #   google-cloud-securitycenter
     #   google-cloud-trace
     #   googleapis-common-protos
     #   grpc-google-iam-v1
