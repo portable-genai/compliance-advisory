@@ -23,7 +23,17 @@ from ...domain.models import ToolSpec
 # MCP protocol revision this catalog conforms to.
 MCP_PROTOCOL_VERSION = "2026-07-28"
 
-# Shared schema fragment: regulator / jurisdiction filters reused across tools.
+# Shared schema fragment: regulator / jurisdiction filters.
+#
+# Declared by `retrieve_regulations` alone, which is the only tool that can act on it: its
+# handler passes `_filters(arguments)` into `QaService.answer`. The three use-case tools
+# declared it too until 2026-08-31 and could not have honoured it -- `ChecklistService.build`,
+# `TestCaseService.generate` and `RegulatorQuestionsService.generate` each take
+# `(use_case, actor)` and nothing else, so a caller narrowing to one regulator got the
+# unfiltered answer and no indication that the narrowing had been dropped. `retrieve_regulations`
+# also declared a `top_k` that `answer` has no parameter for; it is gone for the same reason.
+# Both found mechanically by tests/unit/test_mcp_schema_matches_its_handler.py, which compares
+# each declaration against the keys its handler actually reads.
 _FILTERS_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -58,12 +68,6 @@ def _build_catalog() -> dict[str, ToolSpec]:
                         "type": "string",
                         "description": "Natural-language regulatory question.",
                     },
-                    "top_k": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 50,
-                        "default": 10,
-                    },
                     "filters": _FILTERS_SCHEMA,
                 },
                 "required": ["query"],
@@ -86,7 +90,6 @@ def _build_catalog() -> dict[str, ToolSpec]:
                             "core banking workload'."
                         ),
                     },
-                    "filters": _FILTERS_SCHEMA,
                 },
                 "required": ["use_case"],
                 "additionalProperties": False,
@@ -105,7 +108,6 @@ def _build_catalog() -> dict[str, ToolSpec]:
                         "type": "string",
                         "description": "The control use case to derive test cases for.",
                     },
-                    "filters": _FILTERS_SCHEMA,
                 },
                 "required": ["use_case"],
                 "additionalProperties": False,
@@ -124,7 +126,6 @@ def _build_catalog() -> dict[str, ToolSpec]:
                         "type": "string",
                         "description": "The use case under regulatory scrutiny.",
                     },
-                    "filters": _FILTERS_SCHEMA,
                 },
                 "required": ["use_case"],
                 "additionalProperties": False,
