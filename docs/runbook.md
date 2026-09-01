@@ -120,8 +120,10 @@ endpoint; that is the failure this guard exists to catch.
 - Inline: a query that needs a stale/missing source triggers re-fetch + re-ingest before
   answering (so answers are never built on expired regulation).
 - Scheduled: a background job calls `CorpusLedgerPort.list_expired()` and refreshes expiring
-  sources out of band, see [`.github/workflows/corpus-refresh.yaml`](../.github/workflows/corpus-refresh.yaml).
-  Run it at least daily so most reads hit fresh data within the 7-day TTL.
+  sources out of band. **Nothing schedules it.** The GitHub Actions cron that documented this
+  never ran, because Actions are disabled organization-wide, and the file was removed rather
+  than left standing as a control nobody was performing. Run it by hand at least daily, or wire
+  a Cloud Scheduler job, so most reads hit fresh data within the 7-day TTL.
 
 ### Horizon scanning
 - **What it reads:** the SAME freshness ledger the corpus refresh writes. Each record also
