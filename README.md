@@ -334,9 +334,12 @@ sequenceDiagram
   (`source_id`, `version`, `fetched_at`, `expires_at`, `checksum`, `status`) in **AlloyDB**.
 - **On a read:** fresh sources (`< ttl_days`) are served from the store; expired or missing
   sources are re-fetched and re-ingested **before** the answer is generated.
-- **Out of band:** a scheduled job (`make`-able locally; documented in
-  [`.github/workflows/corpus-refresh.yaml`](.github/workflows/corpus-refresh.yaml) and
-  [`docs/runbook.md`](docs/runbook.md)) refreshes sources whose TTL is about to expire.
+- **Out of band:** a refresh pass over sources whose TTL is about to expire. It is runnable
+  locally and documented in [`docs/runbook.md`](docs/runbook.md), but it has **no automated
+  runner**: the GitHub Actions schedule that once described it never ran, because Actions are
+  disabled organization-wide, and the file was removed rather than left as a false claim.
+  Nothing refreshes the corpus unless someone runs it. The inline path above is what keeps an
+  answer off an expired document in the meantime.
 - **Config:** `corpus.ttl_days` (default `7`) and `corpus.registry_path` in
   `config/settings.yaml`. The policy lives in `FreshnessPolicy(ttl_days)` in the domain.
 
@@ -410,7 +413,7 @@ A metric that re-reads the product's own verdict cannot go red and proves nothin
 make eval        # runs eval/run_eval.py; non-zero exit fails the gate
 ```
 
-CI enforces it in [`.github/workflows/eval-gate.yaml`](.github/workflows/eval-gate.yaml):
+CI enforces it in the hosted Cloud Build check:
 the gate must pass before a release can be promoted to Agent Runtime. See
 [`COMPLIANCE.md`](COMPLIANCE.md) for how this maps to the model-risk principle.
 

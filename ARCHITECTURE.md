@@ -440,9 +440,10 @@ flowchart TB
 - **Inline path:** a query checks the ledger; if a needed source is stale or missing it is
   re-fetched and re-ingested **before** the answer is generated, so answers are never built
   on an expired document.
-- **Scheduled path:** `CorpusLedgerPort.list_expired()` drives a background refresh
-  (documented in [`.github/workflows/corpus-refresh.yaml`](.github/workflows/corpus-refresh.yaml))
-  so most reads hit fresh data and never pay the fetch latency.
+- **Scheduled path:** `CorpusLedgerPort.list_expired()` drives a background refresh so most
+  reads hit fresh data and never pay the fetch latency. It has no scheduler today: the workflow
+  that described the schedule could not run and was removed, so this path is manual until a
+  Cloud Scheduler job is wired for it.
 - **Policy in the domain:** `FreshnessPolicy(ttl_days).expires_at(...)` / `.is_stale(...)`.
 
 ---
@@ -601,7 +602,7 @@ All other SC ids apply, some in an adapted form noted inline.
 | # | Principle (generic) | Mechanism in this repo | Proof |
 |---|---------------------|------------------------|-------|
 | SC-6 | **Maker-checker on every consequential output.** Answers, checklists, test cases and regulator-question sets always require human review. Confidence and severity can only raise the review level, never remove the checker (P-06). | `HumanReviewPolicy.from_policy` in [`domain/hitl.py`](src/compliance_advisory/domain/hitl.py) consumes the bank-owned `policy:` bundle. `Answer.requires_human_review` defaults true and the generators audit `ESCALATED`. | `pytest "tests/unit/test_hitl_and_freshness.py::test_confident_low_severity_answer_still_requires_review" "tests/unit/test_checklist_testcases_regq.py::test_checklist_audits_as_escalated" -q` |
-| SC-7 | **Quality is a promotion gate, not a dashboard.** Groundedness, citation accuracy, faithfulness and PII safety are scored against thresholds and a failing score blocks the build/promotion. | [`eval/run_eval.py`](eval/run_eval.py) (safety >= 0.99, groundedness >= 0.80, citation_accuracy >= 0.90, faithfulness >= 0.80; thresholds in [`eval/rubrics/`](eval/rubrics/)); CI enforces it via [`.github/workflows/eval-gate.yaml`](.github/workflows/eval-gate.yaml); at promotion the Gen AI evaluation service (`gcp` profile) is the authority. | `python eval/run_eval.py` exits non-zero on any miss (exit 0 today). |
+| SC-7 | **Quality is a promotion gate, not a dashboard.** Groundedness, citation accuracy, faithfulness and PII safety are scored against thresholds and a failing score blocks the build/promotion. | [`eval/run_eval.py`](eval/run_eval.py) (safety >= 0.99, groundedness >= 0.80, citation_accuracy >= 0.90, faithfulness >= 0.80; thresholds in [`eval/rubrics/`](eval/rubrics/)); CI enforces it via the hosted Cloud Build check; at promotion the Gen AI evaluation service (`gcp` profile) is the authority. | `python eval/run_eval.py` exits non-zero on any miss (exit 0 today). |
 
 ### 9.3 Identity and secrets
 

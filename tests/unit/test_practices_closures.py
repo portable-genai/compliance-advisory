@@ -37,10 +37,7 @@ def test_kernel_vertical_boundary_and_extension_touch_lists_are_explicit() -> No
         assert phrase in contributing
 
 
-def test_adopter_owned_crosswalk_and_demo_ci_gate_are_present() -> None:
+def test_adopter_owned_crosswalk_is_present() -> None:
     compliance = _read("COMPLIANCE.md")
     assert "Adopter-owned regulator crosswalk" in compliance
     assert "adopting bank" in compliance
-    workflow = _read(".github/workflows/ci.yaml")
-    assert "scripts/demo_selftest.py" in workflow
-    assert "make tf-validate" in workflow
