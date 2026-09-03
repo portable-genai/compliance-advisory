@@ -356,7 +356,7 @@ flowchart TB
     subgraph perimeter["VPC Service Controls perimeter, asia-southeast1"]
         subgraph runtime["Agent Runtime (reasoningEngine)"]
             ROOT["Root ADK agent<br/>gemini-3.5-flash (thinking=high)"]
-            TRIAGE["Triage<br/>gemini-3.1-flash-lite"]
+            TRIAGE["Triage<br/>gemini-3.5-flash"]
             GSUB["Grounding sub-agent<br/>google_search tool"]
             ROOT --- TRIAGE
             ROOT --- GSUB
