@@ -1,7 +1,7 @@
 """Generation ports — LLM text/reasoning and public-web grounding.
 
 Primary GCP adapters: Gemini models on the Gemini Enterprise Agent Platform
-(``gemini-3.5-flash`` for reasoning, ``gemini-3.1-flash-lite`` for triage) and the
+(``gemini-3.5-flash`` for reasoning, ``gemini-3.5-flash`` for triage) and the
 Gemini API ``google_search`` grounding tool (isolated in a grounding sub-agent
 because only one built-in tool is allowed per agent).
 """

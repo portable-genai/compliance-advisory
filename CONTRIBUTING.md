@@ -38,7 +38,7 @@ open an issue first and make the case, don't bundle a contract change into a fea
   `__init__`/methods, never at module top level, so the `onprem`/test profile imports with
   **no** GCP SDK installed.
 - **Region pinned** to `asia-southeast1`. **Models pinned** to the ids in `settings.yaml` /
-  SPEC (`gemini-3.5-flash`, `gemini-3.1-flash-lite`). Never use the floating ADK default
+  SPEC (`gemini-3.5-flash`, `gemini-3.5-flash`). Never use the floating ADK default
   model or `gemini-2.0-flash`.
 - **No secrets in code.** Use env vars / `settings.yaml` interpolation.
 - Use current product names in docstrings: "Gemini Enterprise Agent Platform", "Agent

@@ -178,7 +178,7 @@ sequence diagram, and the runtime topology.
 |---------|------------------------|------------|
 | Agent framework | ADK (Python) | `google-adk==2.7.1` |
 | Reasoning model | Gemini 3.5 Flash | `gemini-3.5-flash` (thinking=high) |
-| Triage model | Gemini 3.1 Flash-Lite | `gemini-3.1-flash-lite` |
+| Triage model | Gemini 3.5 Flash | `gemini-3.5-flash` |
 | Unified SDK | Google GenAI SDK | `google-genai` |
 | Retrieval | **Agent Search** (ex-Vertex AI Search) | `google-cloud-discoveryengine`; ADK `VertexAiSearchTool` |
 | Web grounding | Gemini API `google_search` tool | `google-genai` (own sub-agent) |
