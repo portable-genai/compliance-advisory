@@ -121,9 +121,10 @@ endpoint; that is the failure this guard exists to catch.
   answering (so answers are never built on expired regulation).
 - Scheduled: a background job calls `CorpusLedgerPort.list_expired()` and refreshes expiring
   sources out of band. **Nothing schedules it.** The GitHub Actions cron that documented this
-  never ran, because Actions are disabled organization-wide, and the file was removed rather
-  than left standing as a control nobody was performing. Run it by hand at least daily, or wire
-  a Cloud Scheduler job, so most reads hit fresh data within the 7-day TTL.
+  never ran, because Actions were disabled organization-wide at the time, and the file was
+  removed rather than left standing as a control nobody was performing. GitHub Actions has been
+  the fleet's live CI since 2026-09-02, but this cron has not been re-added, so run it by hand at
+  least daily, or wire a Cloud Scheduler job, so most reads hit fresh data within the 7-day TTL.
 
 ### Horizon scanning
 - **What it reads:** the SAME freshness ledger the corpus refresh writes. Each record also
