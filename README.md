@@ -413,7 +413,7 @@ A metric that re-reads the product's own verdict cannot go red and proves nothin
 make eval        # runs eval/run_eval.py; non-zero exit fails the gate
 ```
 
-CI enforces it in the hosted Cloud Build check:
+CI enforces it in the hosted GitHub Actions check:
 the gate must pass before a release can be promoted to Agent Runtime. See
 [`COMPLIANCE.md`](COMPLIANCE.md) for how this maps to the model-risk principle.
 
