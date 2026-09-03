@@ -336,10 +336,12 @@ sequenceDiagram
   sources are re-fetched and re-ingested **before** the answer is generated.
 - **Out of band:** a refresh pass over sources whose TTL is about to expire. It is runnable
   locally and documented in [`docs/runbook.md`](docs/runbook.md), but it has **no automated
-  runner**: the GitHub Actions schedule that once described it never ran, because Actions are
-  disabled organization-wide, and the file was removed rather than left as a false claim.
-  Nothing refreshes the corpus unless someone runs it. The inline path above is what keeps an
-  answer off an expired document in the meantime.
+  runner**: the GitHub Actions cron that documented this never ran, because Actions were
+  disabled organization-wide at the time, and the file was removed rather than left standing
+  as a control nobody was performing. GitHub Actions has been the fleet's live CI since
+  2026-09-02, but this cron has not been re-added, so nothing refreshes the corpus unless
+  someone runs it by hand. The inline path above is what keeps an answer off an expired
+  document in the meantime.
 - **Config:** `corpus.ttl_days` (default `7`) and `corpus.registry_path` in
   `config/settings.yaml`. The policy lives in `FreshnessPolicy(ttl_days)` in the domain.
 
