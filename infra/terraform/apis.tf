@@ -24,7 +24,7 @@ locals {
     "cloudkms.googleapis.com",             # Regional CMEK key ring (P-09)
     "accesscontextmanager.googleapis.com", # VPC Service Controls perimeter (P-03)
     "assuredworkloads.googleapis.com",     # Assured Workloads (sovereignty controls, P-03)
-    # Control-posture sources merged in from the Rsk2 control-mapping module.
+    # Control-posture sources merged in from the the cloud control-mapping toolkit control-mapping module.
     "securitycenter.googleapis.com", # Security Command Center (live posture findings)
     "cloudasset.googleapis.com",     # Cloud Asset Inventory (realised config + org-policy feed)
     "pubsub.googleapis.com",         # Pub/Sub topic the Cloud Asset feed publishes to

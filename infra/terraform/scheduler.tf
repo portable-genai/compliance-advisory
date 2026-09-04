@@ -46,7 +46,7 @@ resource "google_cloud_run_v2_job" "freshness_refresh" {
           name  = "GOOGLE_CLOUD_PROJECT"
           value = var.project_id
         }
-        # Control-mapping posture settings merged in from the Rsk2 module (COMPLIANCE_*).
+        # Control-mapping posture settings merged in from the the cloud control-mapping toolkit module (COMPLIANCE_*).
         # These replace the retired CONTROL_MAPPING_* vars; empty when org_id is unset.
         env {
           name  = "COMPLIANCE_SCC_PARENT"

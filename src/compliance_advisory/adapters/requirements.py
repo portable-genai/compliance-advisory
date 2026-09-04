@@ -1,7 +1,7 @@
-"""RequirementSourcePort adapter — in-process bind to Rsk1's shared reg-KB retrieval.
+"""RequirementSourcePort adapter — in-process bind to compliance-advisory's shared reg-KB retrieval.
 
 The POINT of the C2->C1 merge: the control-mapping capability does not run its own
-regulatory knowledge base. There is ONE reg KB — Rsk1's retrieval port (the
+regulatory knowledge base. There is ONE reg KB — compliance-advisory's retrieval port (the
 ``compliance-reg-kb`` Agent Search store on the ``gcp`` profile, the SQLite FTS5 corpus
 on ``local``, the on-prem placeholder on ``onprem``). This adapter satisfies
 :class:`~compliance_advisory.ports.requirements.RequirementSourcePort` by delegating,
@@ -31,7 +31,9 @@ from ..domain.models import RetrievalQuery, RetrievedPassage
 
 
 class RetrievalRequirementSourceAdapter:
-    """Fetch regulatory obligations from Rsk1's shared retrieval port (in-process)."""
+    """Fetch regulatory obligations from compliance-advisory's shared
+    retrieval port (in-process).
+    """
 
     #: How many passages to pull from the reg KB for a scope. The reg KB is global
     #: (obligations are not scoped to a single project), so this bounds recall.

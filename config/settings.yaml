@@ -235,9 +235,9 @@ adapters:
     local: compliance_advisory.adapters.local.identity:LocalPersonaIdentityAdapter
     live: compliance_advisory.adapters.local.identity:LocalPersonaIdentityAdapter
     onprem: compliance_advisory.adapters.onprem.identity:OnPremIdentityAdapter
-  # Rule R8: an escalated answer (requires_human_review) is ROUTED to the Hrz7 Human-Review &
+  # Rule R8: an escalated answer (requires_human_review) is ROUTED to the human-review-console Human-Review &
   # Maker-Checker Console via the shared review-kit, not left as a per-repo boolean.
-  # gcp/platform submit over S2S to Hrz7; local enqueues to an in-memory outbox so the routing
+  # gcp/platform submit over S2S to human-review-console; local enqueues to an in-memory outbox so the routing
   # path runs offline; onprem is the fail-fast sovereign placeholder.
   review_router:
     gcp: compliance_advisory.adapters.platform.review_router:PlatformReviewRouter

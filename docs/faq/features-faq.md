@@ -5,7 +5,7 @@ deterministic vs LLM, and, importantly, where its responsibilities **stop** and 
 catalog system takes over. Cross-references: [`README.md`](../../README.md),
 [`DEMO.md`](../../DEMO.md).
 
-### What does Rsk1 actually produce?
+### What does `compliance-advisory` actually produce?
 
 Four grounded artifacts over a public regulatory knowledge base (MAS/HKMA/APRA/FSA):
 
@@ -32,7 +32,7 @@ decision without the model. This is by design (the "deterministic domain service
 
 No. This is a **decision-support** assistant: it proposes, a qualified human disposes.
 Consequential artifacts (the control checklist, test cases, regulator questions) always set
-`requires_human_review=True`, and any escalated output is routed to the Hrz7 Human-Review
+`requires_human_review=True`, and any escalated output is routed to the `human-review-console` Human-Review
 and Maker-Checker console via the shared `review-kit` (rule R8), not left as a per-repo
 boolean. Note that a plain `ask` answer computes its review flag from confidence and
 severity, so a high-confidence, low-severity answer can return with the flag `False`;
@@ -54,24 +54,24 @@ regulatory-Q&A domain logic and its artifacts, plus the control-mapping module
 profile's HTTP adapters) several cross-cutting concerns owned by sibling platform systems.
 Do not rebuild these in a fork:
 
-| Concern | Owned by (catalog id / repo) | Rsk1's role |
+| Concern | Owned by (catalog id / repo) | `compliance-advisory`'s role |
 |---|---|---|
-| Runtime guardrail: PII redaction, prompt-injection / jailbreak defense | **Hrz1** `agent-guardrail-gateway` | consumes it on the input + output screen |
-| Governed RAG / knowledge base with citations | **Hrz2** `enterprise-knowledge-base` | retrieves grounded passages from it (the `gcp` profile uses managed Agent Search) |
-| Agent registry, versioning, identity | **Hrz3** `agent-registry` | publishes its A2A AgentCard for discovery |
-| AI-quality / eval / model-risk promotion gate | **Hrz4** `model-quality-gate` | its eval metrics gate promotion; the offline gate mirrors it (bundle `rsk1-compliance-advisory`) |
-| Observability + immutable WORM prompt/response audit | **Hrz5** `agent-observability` | writes audit events to it; traces spans through it |
-| Human-Review and Maker-Checker console | **Hrz7** (`review-kit`) | routes every escalated output to it (R8) |
-| On-prem, CPU-only DLP scrub before egress | **Rsk6** `onprem-dlp` | the sovereign-DLP option behind the redaction port |
+| Runtime guardrail: PII redaction, prompt-injection / jailbreak defense | `agent-guardrail-gateway` | consumes it on the input + output screen |
+| Governed RAG / knowledge base with citations | `enterprise-knowledge-base` | retrieves grounded passages from it (the `gcp` profile uses managed Agent Search) |
+| Agent registry, versioning, identity | `agent-registry` | publishes its A2A AgentCard for discovery |
+| AI-quality / eval / model-risk promotion gate | `model-quality-gate` | its eval metrics gate promotion; the offline gate mirrors it (bundle `rsk1-compliance-advisory`) |
+| Observability + immutable WORM prompt/response audit | `agent-observability` | writes audit events to it; traces spans through it |
+| Human-Review and Maker-Checker console | `human-review-console` (`review-kit`) | routes every escalated output to it (R8) |
+| On-prem, CPU-only DLP scrub before egress | `onprem-dlp` | the sovereign-DLP option behind the redaction port |
 
 So the guardrail, knowledge base, audit sink, eval platform and review console are
 *dependencies*, not features of this repo.
 
 ### How does this relate to the document-diligence systems in the catalog?
 
-Rsk1 is the horizontal regulatory-Q&A assistant that the document-diligence verticals
+`compliance-advisory` is the horizontal regulatory-Q&A assistant that the document-diligence verticals
 (for example the CDD/SoW agent) *consume* for their regulatory compliance checks. They own
-the case-level diligence logic; Rsk1 owns the grounded regulatory reasoning and control
+the case-level diligence logic; `compliance-advisory` owns the grounded regulatory reasoning and control
 mapping. Check [the organization's repository index](https://github.com/portable-genai)
 before building a capability that may already have a home.
 

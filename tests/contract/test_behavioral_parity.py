@@ -8,18 +8,16 @@ and the on-prem migration placeholder fails fast rather than returning a wrong a
 
 What this repo actually ships (see ``config/settings.yaml`` ``adapters:``):
 
-* three ports have a real ``platform`` HTTP client in addition to the ``local``
-  in-process adapter: ``guardrail`` (Hrz1), ``audit`` (Hrz5) and ``registry`` (Hrz3).
-  For each, the same request is put through the ``local`` adapter and through the
-  ``platform`` client (its sibling horizontal-platform service mocked with respx at
-  the documented SPEC section 6 contract), and the two are asserted identical at the
-  boundary.
-* ``retrieval`` has no ``platform`` adapter (a laptop runs one app), so its parity
-  claim is *determinism*: the same query through two independent ``local`` FTS5
-  indexes returns byte-identical passages (same domain objects). This is the property
-  a migration relies on, so it is asserted directly.
-* every port's ``onprem`` placeholder constructs and satisfies the Protocol but raises
-  ``NotImplementedError`` on use (fail-fast), asserted for all four ports above.
+* three ports have a real ``platform`` HTTP client in addition to the ``local`` in-process adapter:
+  ``guardrail`` (agent-guardrail-gateway), ``audit`` (agent-observability) and ``registry``
+  (agent-registry). For each, the same request is put through the ``local`` adapter and through the
+  ``platform`` client (its sibling horizontal-platform service mocked with respx at the documented
+  SPEC section 6 contract), and the two are asserted identical at the boundary. * ``retrieval`` has
+  no ``platform`` adapter (a laptop runs one app), so its parity claim is *determinism*: the same
+  query through two independent ``local`` FTS5 indexes returns byte-identical passages (same domain
+  objects). This is the property a migration relies on, so it is asserted directly. * every port's
+  ``onprem`` placeholder constructs and satisfies the Protocol but raises ``NotImplementedError`` on
+  use (fail-fast), asserted for all four ports above.
 
 Plus the end-to-end proof: the full ``ComplianceQAService`` answer pipeline runs under
 ``local`` and fails fast under ``onprem`` with **zero domain edits**, only a profile
@@ -80,14 +78,14 @@ def _adapter(port: str, profile: str):
 
 
 # --------------------------------------------------------------------------- #
-# GuardrailPort (Hrz1) — same verdict for the same request across implementations
+# GuardrailPort (agent-guardrail-gateway) — same verdict for the same request across implementations
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(("text", "should_allow"), [(BENIGN_TEXT, True), (INJECTION_TEXT, False)])
 def test_guardrail_parity_same_verdict_every_implementation(text: str, should_allow: bool):
     local_verdict = _adapter("guardrail", "local").screen(text, Direction.INPUT)
 
     with respx.mock:
-        # Hrz1 gateway (Model Armor backed) serves its documented /v1/guardrail/screen
+        # agent-guardrail-gateway (Model Armor backed) serves its documented /v1/guardrail/screen
         # answer for the same request; the local heuristic reaches the same verdict.
         respx.post(f"{GUARDRAIL_GATEWAY}/v1/guardrail/screen").respond(
             200,
@@ -120,7 +118,7 @@ def test_guardrail_parity_same_verdict_every_implementation(text: str, should_al
 
 
 # --------------------------------------------------------------------------- #
-# AuditSinkPort (Hrz5) — byte-identical record shape at every sink boundary
+# AuditSinkPort (agent-observability) — byte-identical record shape at every sink boundary
 # --------------------------------------------------------------------------- #
 def test_audit_parity_identical_payload_at_every_sink():
     event = AuditEvent(
@@ -159,7 +157,7 @@ def test_audit_parity_identical_payload_at_every_sink():
 
 
 # --------------------------------------------------------------------------- #
-# AgentRegistryPort (Hrz3) — the same AgentCard round-trips either way
+# AgentRegistryPort (agent-registry) — the same AgentCard round-trips either way
 # --------------------------------------------------------------------------- #
 def test_registry_parity_same_card_across_implementations():
     card = AgentCard(
@@ -178,7 +176,7 @@ def test_registry_parity_same_card_across_implementations():
 
     with respx.mock:
         respx.post(f"{AGENT_REGISTRY}/v1/agents").respond(201)
-        # Hrz3 serves back the same card shape for the same name (SPEC section 6).
+        # agent-registry serves back the same card shape for the same name (SPEC section 6).
         respx.get(f"{AGENT_REGISTRY}/v1/agents/{card.name}").respond(200, json=to_jsonable(card))
         remote_registry = _adapter("registry", "platform")
         remote_registry.register(card)

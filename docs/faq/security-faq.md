@@ -67,7 +67,7 @@ The `local` audit store wraps the shared `hex_service_kit.audit.HashChainedAudit
 `verify_chain()` method. The honest limit is stated in the module docstring: the chain alone
 carries no secret, so it detects in-place edits but a full-rewrite needs an external anchor
 or the WORM bucket. In production the `gcp` profile uses a locked Cloud Logging WORM bucket,
-and the enterprise WORM audit system is the sibling **Hrz5** (this repo does not replace it).
+and the enterprise WORM audit system is the sibling `agent-observability` (this repo does not replace it).
 Proven in `tests/unit/test_audit_chain.py`.
 
 ### Supply chain: are dependencies pinned and scanned?

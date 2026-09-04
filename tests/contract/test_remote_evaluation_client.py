@@ -1,4 +1,5 @@
-"""Contract test: the platform eval adapter speaks Hrz4's hardened, bundle-driven HTTP shape.
+"""Contract test: the platform eval adapter speaks model-quality-gate's hardened, bundle-driven HTTP
+shape.
 
 The ``RemoteEvaluationAdapter`` had no test at all. It is the one component that decides
 whether C4 may be promoted, it delegates that decision to
@@ -7,11 +8,11 @@ asserted what it sends or what it is willing to believe. That is the gap this fi
 the sibling verticals already pin the same contract, and a promotion gate nobody tests is a
 promotion gate nobody can trust.
 
-HTTP is intercepted with ``respx`` (a dev dependency); no live Hrz4 is contacted.
+HTTP is intercepted with ``respx`` (a dev dependency); no live model-quality-gate is contacted.
 
-Request side: a *structured* target, a top-level ``dataset_id`` equal to
-``target.dataset_id`` (Hrz4 422s on divergence), and metric selection by the registered
-bundle name only, never a metric-name list.
+Request side: a *structured* target, a top-level ``dataset_id`` equal to ``target.dataset_id``
+(model-quality-gate 422s on divergence), and metric selection by the registered bundle name only,
+never a metric-name list.
 
 Response side, the hardened contract: the client RE-DERIVES every verdict from the evidence
 and raises on any contradiction, on the plain evaluations path as well as inside ``gate``.

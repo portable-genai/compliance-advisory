@@ -34,7 +34,7 @@ locals {
     "roles/alloydb.client",         # read freshness ledger (PRIVATE)
     "roles/secretmanager.secretAccessor",
     "roles/run.invoker",
-    # Control-mapping posture reads (merged from Rsk2) — folded onto this single
+    # Control-mapping posture reads (merged from the cloud control-mapping toolkit) — folded onto this single
     # serving SA; the merged service observes control posture, it does not create it.
     "roles/securitycenter.findingsViewer", # read SCC findings (posture)
     "roles/cloudasset.viewer",             # read realised config / org policy

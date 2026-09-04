@@ -2,12 +2,11 @@
 
 The load-bearing assertions here are the ones a regulator would ask about:
 
-* a HOSTILE model reply cannot change the materiality score, band, applicability or owner,
-* an unavailable model costs the scan its prose and nothing else,
-* every assessment carries the citation of the instrument that drove it,
-* the scan is audited as an ESCALATION and every escalated assessment is ROUTED to Hrz7,
-* an empty ledger is a clear domain error, not a silent empty scan, and
-* re-scanning preserves a human-set implementation status.
+* a HOSTILE model reply cannot change the materiality score, band, applicability or owner, * an
+  unavailable model costs the scan its prose and nothing else, * every assessment carries the
+  citation of the instrument that drove it, * the scan is audited as an ESCALATION and every
+  escalated assessment is ROUTED to human-review-console, * an empty ledger is a clear domain error,
+  not a silent empty scan, and * re-scanning preserves a human-set implementation status.
 """
 
 from __future__ import annotations

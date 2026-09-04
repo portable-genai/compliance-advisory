@@ -33,7 +33,7 @@ locals {
     "cloudkms.googleapis.com",
     "secretmanager.googleapis.com",
     "storage.googleapis.com",
-    # Control-posture plane merged from the Rsk2 control-mapping module — kept inside
+    # Control-posture plane merged from the the cloud control-mapping toolkit control-mapping module — kept inside
     # the sovereignty boundary so posture data cannot leave the country (P-03).
     "securitycenter.googleapis.com",
     "cloudasset.googleapis.com",

@@ -1,7 +1,7 @@
-# Demo scripts - Rsk1 grounded compliance, four cited artifacts
+# Demo scripts - `compliance-advisory` grounded compliance, four cited artifacts
 
 All scripts are SDK-free and run against the in-process `local` stack (no Google Cloud,
-no API key). They drive the real Rsk1 services - retrieval, guardrail, PII redaction,
+no API key). They drive the real `compliance-advisory` services - retrieval, guardrail, PII redaction,
 grounded generation, maker-checker gating and WORM audit - over the built-in synthetic
 MAS / HKMA / APRA corpus, swapping only the managed adapters for offline equivalents.
 
@@ -16,7 +16,7 @@ deterministic regardless of what is on the presenter's laptop.
 
 | Script | What it does |
 |--------|--------------|
-| `compliance_demo.py` | Runs the synthetic cloud-onboarding use case through the Rsk1 pipeline, prints a per-artifact summary, and writes the audit-view JSON (the four cited artifacts + the WORM audit trail). |
+| `compliance_demo.py` | Runs the synthetic cloud-onboarding use case through the `compliance-advisory` pipeline, prints a per-artifact summary, and writes the audit-view JSON (the four cited artifacts + the WORM audit trail). |
 | `render_compliance_ui.py` | Renders that JSON into static, audit-first HTML pages (one per artifact + an audit-trail page) for slides and screenshots. |
 | `compliance_demo_server.py` | A **live, presenter-controlled** server that runs the *real* services and reveals one artifact per click, rendering the audit-first console at each step. |
 | `compliance_demo_playwright.py` | A **presenter-controlled** Playwright walkthrough of the live server: it narrates each step and waits for you to press Enter before performing it. |

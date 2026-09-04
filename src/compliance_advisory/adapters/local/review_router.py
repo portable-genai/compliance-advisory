@@ -1,15 +1,15 @@
-"""Local ReviewRouterPort: enqueue the routed review to an in-memory outbox (no live Hrz7).
+"""Local ReviewRouterPort: enqueue the routed review to an in-memory outbox (no live
+human-review-console).
 
-Exercises the R8 routing path offline: an escalated item is converted to a review and enqueued
-(the same transactional outbox the platform adapter flushes to Hrz7), so tests and the offline
-demo can assert that an escalation is routed without a running console.
+Exercises the R8 routing path offline: an escalated item is converted to a review and enqueued (the
+same transactional outbox the platform adapter flushes to human-review-console), so tests and the
+offline demo can assert that an escalation is routed without a running console.
 
-The one router serves EVERY escalation path against the single Hrz7 contract: an escalated
-compliance :class:`Answer` (the assistant's Q&A path), an :class:`EvidencePack` (the
-control-mapping capability's always-review deliverable), a :class:`HorizonAssessment`
-(ownership routing plus a consequential materiality call) and an
-:class:`ImplementationItem` (a tracked change closed as implemented or accepted risk). It
-dispatches on the payload type.
+The one router serves EVERY escalation path against the single human-review-console contract: an
+escalated compliance :class:`Answer` (the assistant's Q&A path), an :class:`EvidencePack` (the
+control-mapping capability's always-review deliverable), a :class:`HorizonAssessment` (ownership
+routing plus a consequential materiality call) and an :class:`ImplementationItem` (a tracked change
+closed as implemented or accepted risk). It dispatches on the payload type.
 """
 
 from __future__ import annotations

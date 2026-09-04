@@ -9,7 +9,7 @@ Cross-references: [`COMPLIANCE.md`](../../COMPLIANCE.md) (the full principle-to-
 No. It is a **decision-support** assistant: every consequential output is proposed for human
 review, never auto-executed. The consequential artifacts (control checklist, control test
 cases, regulator questions) always set `requires_human_review=True`, and any escalated output
-is routed to the Hrz7 Human-Review and Maker-Checker console via the shared `review-kit`
+is routed to the `human-review-console` Human-Review and Maker-Checker console via the shared `review-kit`
 (rule R8). The deterministic engines produce a documented, replayable assessment; a qualified
 human (analyst / compliance officer) disposes.
 
@@ -22,7 +22,7 @@ defence-in-depth, redaction is still the **first** step of every request
 `LocalRegexRedactionAdapter` masks anything a user types into a question (SG NRIC/FIN, email,
 SG phone) and the `gcp` profile uses DLP de-identify. The `AuditEvent` stores only the
 redacted prompt and response, and the tracer span carries no question content. The runtime
-guardrail (prompt-injection / jailbreak defence) is the sibling **Hrz1** gateway, consumed
+guardrail (prompt-injection / jailbreak defence) is the sibling `agent-guardrail-gateway`, consumed
 rather than re-implemented.
 
 The control-mapping module (`/map`, `/gaps`, `/evidence-pack`) runs a **separate**
@@ -37,7 +37,7 @@ Every assessment writes an immutable, already-redacted WORM `AuditEvent` with th
 and the citation set. Every answer statement carries a source-and-page `Citation`, and the
 consequential logic (review policy, freshness policy, citation mapping, severity roll-up) is
 deterministic, so an auditor can recompute any review or freshness decision from the same
-inputs. The enterprise WORM audit system is **Hrz5**; the in-repo hash-chained store is the
+inputs. The enterprise WORM audit system is `agent-observability`; the in-repo hash-chained store is the
 offline/local stand-in (see [security-faq.md](security-faq.md) for its exact tamper-evidence
 limits).
 
@@ -45,7 +45,7 @@ limits).
 
 An offline eval gate (`eval/run_eval.py`) scores groundedness, citation accuracy,
 faithfulness, and safety against a golden set, with a `--mode smoke | gate` split. The
-enterprise promotion gate and model-risk harness are the sibling **Hrz4** system; this repo's
+enterprise promotion gate and model-risk harness are the sibling `model-quality-gate` system; this repo's
 gate mirrors its thresholds (registered bundle `rsk1-compliance-advisory`, the
 `remote_evaluation` platform adapter) so merges are guarded locally, and gate mode refuses to
 run outside `COMPLIANCE_PROFILE=platform | gcp`. A fork must rebuild the golden set for its
@@ -57,7 +57,7 @@ own regulators, or the gate measures the wrong thing.
 references. The reference corpus targets MAS (Singapore), HKMA (Hong Kong), APRA (Australia)
 and FSA (Japan). To add or retarget a regulator, edit the source registry
 (`pipelines/sources/registry.yaml`) and re-review with local counsel. At scale, the sibling
-**Rsk2 control-mapping toolkit** generates and maintains crosswalks; a large estate should
+**the cloud control-mapping toolkit control-mapping toolkit** generates and maintains crosswalks; a large estate should
 integrate it rather than hand-maintain the tables. Note the repo does not yet carry an
 explicit adopter-owned per-regulator crosswalk appendix (practices-audit check G2), which a
 fork should add.
@@ -67,8 +67,8 @@ fork should add.
 Yes, at deploy time: a single in-country region (default `asia-southeast1` / Singapore),
 validated to fail fast (the Terraform `region` variable rejects other regions), with regional
 endpoints, a resource-location Org Policy allowlist, CMEK, and a VPC-SC perimeter. The
-residency-violation CI gate is the sibling **Rsk4 residency validator**; the
-exit/concentration-risk plan is **Rsk5**. This repo enforces residency in its own infra and
+residency-violation CI gate is the sibling **the data-residency validator residency validator**; the
+exit/concentration-risk plan is **the exit-and-portability planner**. This repo enforces residency in its own infra and
 is one of the systems those tools reason about.
 
 ### Can we run it against a live regulatory corpus and expose answers to users today?
@@ -87,6 +87,6 @@ It covers grounded regulatory Q&A, control-checklist drafting, control test-case
 and regulator-question preparation over a public regulatory knowledge base. It does **not**
 do case-level customer diligence (CDD/KYC, source-of-wealth), sanctions-hit disposition, or
 transaction-monitoring alert triage; those are separate catalog systems (the
-document-diligence verticals and the proposed FCC systems) that *consume* Rsk1 for their
+document-diligence verticals and the proposed FCC systems) that *consume* `compliance-advisory` for their
 regulatory checks rather than duplicating it. See [features-faq.md](features-faq.md) for
 the boundary.

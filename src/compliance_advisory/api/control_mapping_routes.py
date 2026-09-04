@@ -8,7 +8,7 @@ Mounts the three cited control-mapping artifacts on the assistant's existing Fas
 
 These routes DO NOT collide with the assistant's own surface (``/ask``, ``/checklist``,
 ``/testcases``, ``/regulator-questions``). The ``/evidence-pack`` shape is preserved
-unchanged for its external consumer (Rsk3, the architecture validator).
+unchanged for its external consumer (architecture-validator, the architecture validator).
 
 Design constraints mirror the host app:
 

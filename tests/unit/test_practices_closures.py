@@ -22,7 +22,7 @@ def test_document_authority_is_ordered_and_linked_from_top_documents() -> None:
 
 def test_kernel_vertical_boundary_and_extension_touch_lists_are_explicit() -> None:
     architecture = _read("ARCHITECTURE.md")
-    assert "Stable kernel versus Rsk1 vertical" in architecture
+    assert "Stable kernel versus `compliance-advisory` vertical" in architecture
     assert "vertical services -> stable envelopes -> ports" in architecture
     contributing = _read("CONTRIBUTING.md")
     for phrase in (

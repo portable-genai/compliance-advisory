@@ -11,8 +11,9 @@ the VERIFIED principal's tenant, which the API threads in from the
 A cross-tenant read raises :class:`~.errors.TenantMismatchError` (an explicit 403), so the
 denial is visible rather than disguised as a 404.
 
-A closure that ends the bank's exposure without implementing the change (``accepted_risk``)
-or asserts it is done (``implemented``) is consequential, so it routes to Hrz7 (rule R8).
+A closure that ends the bank's exposure without implementing the change (``accepted_risk``) or
+asserts it is done (``implemented``) is consequential, so it routes to human-review-console (rule
+R8).
 
 Pure domain code — no Google Cloud / ADK / FastAPI imports.
 """

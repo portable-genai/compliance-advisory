@@ -1,6 +1,6 @@
 # assured_workloads.tf — Sovereignty control package for the Singapore workload.
 #
-# Merged in from the Rsk2 control-mapping module: the compliance assistant now also
+# Merged in from the the cloud control-mapping toolkit control-mapping module: the compliance assistant now also
 # *observes* its own Assured Workloads compliance status as one of its control
 # families (assured-workloads-sg). This is the resource that observation reads.
 #

@@ -1,11 +1,10 @@
 """Pydantic v2 request/response models for the control-mapping API routes.
 
 These schemas mirror the frozen domain dataclasses in
-:mod:`compliance_advisory.domain.control_mapping.models` one-for-one, so the HTTP
-boundary is a thin, typed projection of the domain. The ``/map``, ``/evidence-pack`` and
-``/gaps`` shapes are preserved UNCHANGED from the standalone C2 toolkit: an external
-consumer (Rsk3, the architecture validator) POSTs ``/evidence-pack`` and depends on this
-shape.
+:mod:`compliance_advisory.domain.control_mapping.models` one-for-one, so the HTTP boundary is a
+thin, typed projection of the domain. The ``/map``, ``/evidence-pack`` and ``/gaps`` shapes are
+preserved UNCHANGED from the standalone C2 toolkit: an external consumer (architecture-validator,
+the architecture validator) POSTs ``/evidence-pack`` and depends on this shape.
 
 Nothing here imports Google Cloud, ADK, or any adapter: the API layer depends only on the
 domain models, the ports, and the orchestration services — never on a concrete adapter.

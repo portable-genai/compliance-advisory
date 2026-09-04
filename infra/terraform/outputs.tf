@@ -46,7 +46,7 @@ output "alloydb_cluster" {
   value       = google_alloydb_cluster.freshness.name
 }
 
-# ------------------------- Control posture (Rsk2 merge) --------------------- #
+# ------------------------- Control posture (the cloud control-mapping toolkit merge) --------------------- #
 output "scc_parent" {
   description = "SCC parent the app reads findings from (settings.yaml COMPLIANCE_SCC_PARENT)."
   value       = var.org_id != "" ? "organizations/${var.org_id}" : ""

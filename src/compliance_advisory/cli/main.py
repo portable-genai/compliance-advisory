@@ -375,7 +375,9 @@ def horizon_set_status(
     note: str = typer.Option("", "--note", help="Note recorded with the transition."),
     control: list[str] = _CONTROL_OPTION,
 ) -> None:
-    """Advance a tracked change. Closures are routed to Hrz7 for maker-checker sign-off."""
+    """Advance a tracked change. Closures are routed to human-review-console for maker-checker
+    sign-off.
+    """
     from ..domain.horizon import ImplementationStatus
 
     try:

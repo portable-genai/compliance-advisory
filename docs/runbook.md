@@ -1,6 +1,6 @@
-# Runbook: Rsk1 Compliance Assistant
+# Runbook: `compliance-advisory`
 
-Operational guide for deploying and running Rsk1 on the `gcp` profile in `asia-southeast1`.
+Operational guide for deploying and running `compliance-advisory` on the `gcp` profile in `asia-southeast1`.
 This is a reference build; adapt thresholds, IAM, and approvals to your own change-management
 and model-risk processes before any production use.
 
@@ -54,7 +54,7 @@ Authoritative stack and decisions: [`SPEC.md`](../SPEC.md). Architecture:
    `FreshnessRecord`s (TTL = `corpus.ttl_days`, default 7 days) into the AlloyDB ledger.
 
 5. **Run the eval gate.** `make eval` must pass (groundedness, citation accuracy,
-   faithfulness, safety) before promotion (P-08 / Hrz4). A non-zero exit blocks the release.
+   faithfulness, safety) before promotion (P-08 / `model-quality-gate`). A non-zero exit blocks the release.
 
 6. **Lock the log bucket, LAST.** Only after everything above is verified, lock the Cloud
    Logging WORM bucket (retention `logging.retention_days = 2557`). **This is irreversible.**
@@ -157,7 +157,7 @@ endpoint; that is the failure this guard exists to catch.
 - **Hard stop:** to take the assistant offline, scale the API to zero and/or undeploy the
   Agent Runtime `reasoningEngine`. The WORM audit bucket and ledger persist independently, so
   no audit history is lost.
-- **Pause horizon escalations:** horizon assessments route to Hrz7 through the same
+- **Pause horizon escalations:** horizon assessments route to `human-review-console` through the same
   `ReviewRouterPort` as every other escalation. Unsetting `HUMAN_REVIEW_URL` stops the
   submissions; the ESCALATED audit rows are still written, so nothing is lost, and the
   scans keep returning their decisions.
