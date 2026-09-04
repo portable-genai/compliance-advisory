@@ -6,11 +6,11 @@ returns a real cited evidence pack with no external posture source. The text is 
 the source ids / titles are plausible but fictional and must not be treated as the real
 instruments.
 
-The regulatory obligations themselves are NOT seeded here: the merged assistant has ONE
-regulatory knowledge base, so control-mapping requirements come from Rsk1's shared local
+The regulatory obligations themselves are NOT seeded here: the merged assistant has ONE regulatory
+knowledge base, so control-mapping requirements come from compliance-advisory's shared local
 retrieval corpus (:mod:`compliance_advisory.adapters.local._seed`) via the in-process
-:class:`~compliance_advisory.adapters.requirements.RetrievalRequirementSourceAdapter`.
-The default local scope is :data:`SEED_SCOPE`; the posture is keyed to it.
+:class:`~compliance_advisory.adapters.requirements.RetrievalRequirementSourceAdapter`. The default
+local scope is :data:`SEED_SCOPE`; the posture is keyed to it.
 """
 
 from __future__ import annotations

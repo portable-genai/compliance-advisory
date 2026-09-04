@@ -1,12 +1,13 @@
-"""Platform ReviewRouterPort: submit the routed answer review to Hrz7 via ``review-kit``.
+"""Platform ReviewRouterPort: submit the routed answer review to human-review-console via
+``review-kit``.
 
-Builds the review from the escalated answer and submits it to the Hrz7 service intake
-(``POST /v1/service/reviews``), S2S-authenticated. The Hrz7 base URL comes from the environment
-(``HUMAN_REVIEW_URL``) and the S2S credentials from this repo's shared env-var names
-(``S2S_TOKEN`` / ``S2S_SIGNING_KEY``, the same pair the other platform delegates use). No
-cloud SDK is involved (the kit uses stdlib ``urllib`` + wire-compatible S2S headers), so this
-module imports cleanly with no GCP SDK; it is bound under the ``gcp`` and ``platform`` profiles
-because it makes a real network call to a sibling service.
+Builds the review from the escalated answer and submits it to the human-review-console service
+intake (``POST /v1/service/reviews``), S2S-authenticated. The human-review-console base URL comes
+from the environment (``HUMAN_REVIEW_URL``) and the S2S credentials from this repo's shared env-var
+names (``S2S_TOKEN`` / ``S2S_SIGNING_KEY``, the same pair the other platform delegates use). No
+cloud SDK is involved (the kit uses stdlib ``urllib`` + wire-compatible S2S headers), so this module
+imports cleanly with no GCP SDK; it is bound under the ``gcp`` and ``platform`` profiles because it
+makes a real network call to a sibling service.
 """
 
 from __future__ import annotations
@@ -30,9 +31,9 @@ _URL_ENV = "HUMAN_REVIEW_URL"
 
 
 class PlatformReviewRouter:
-    """Submit escalated items to Hrz7 (rule R8), reusing the shared submit client.
+    """Submit escalated items to human-review-console (rule R8), reusing the shared submit client.
 
-    Serves every R8 path against the single Hrz7 contract: an escalated compliance
+    Serves every R8 path against the single human-review-console contract: an escalated compliance
     :class:`Answer`, a control-mapping :class:`EvidencePack`, a horizon
     :class:`HorizonAssessment` and a horizon :class:`ImplementationItem` closure,
     dispatched by type.
@@ -47,10 +48,10 @@ class PlatformReviewRouter:
         *,
         maker: str,
         tenant: str = "",
-    ) -> None:  # pragma: no cover - needs live Hrz7
+    ) -> None:  # pragma: no cover - needs live human-review-console
         base_url = read_env_setting(_URL_ENV).value
         if not base_url:
-            raise RuntimeError(f"{_URL_ENV} must be set to route reviews to Hrz7")
+            raise RuntimeError(f"{_URL_ENV} must be set to route reviews to human-review-console")
         client = ReviewClient(base_url, token_env=TOKEN_ENV, signing_key_env=SIGNING_KEY_ENV)
         if isinstance(answer, EvidencePack):
             client.submit(

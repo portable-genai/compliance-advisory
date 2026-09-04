@@ -1,7 +1,6 @@
-# Rsk1 Compliance Assistant: Terraform (Singapore-resident, sovereign deploy)
+# `compliance-advisory`: Terraform (Singapore-resident, sovereign deploy)
 
-This module provisions the full **Singapore-resident** managed stack for the Rsk1
-Compliance Assistant. Region is **pinned to `asia-southeast1`** for every resource;
+This module provisions the full **Singapore-resident** managed stack for the `compliance-advisory`. Region is **pinned to `asia-southeast1`** for every resource;
 only `project_id` and a few genuinely per-tenant values are variables.
 
 It maps directly to the pinned stack in `SPEC.md §3`:
@@ -77,7 +76,7 @@ terraform output    # copy data_store_id, kms_key, alloydb_instance_uri, templat
 
 ## ⚠️ Fail-fast region note (Agent Search)
 
-Rsk1 uses **Agent Search as the only production retrieval backend** and is a
+`compliance-advisory` uses **Agent Search as the only production retrieval backend** and is a
 **Singapore-resident** system. The Terraform is written to **fail fast** if Agent
 Search cannot be provisioned in `asia-southeast1`:
 

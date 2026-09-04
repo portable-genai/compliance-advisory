@@ -111,7 +111,8 @@ class ComplianceQAService:
         self._audit = audit
         self._policy = policy or CompliancePolicyConfig()
         self._review = review_policy or HumanReviewPolicy.from_policy(self._policy)
-        # Rule R8 hand-off (optional). When bound, an escalated answer is routed to the Hrz7
+        # Rule R8 hand-off (optional). When bound, an escalated answer is routed to the
+        # human-review-console
         # maker-checker console. A None router leaves requires_human_review as a plain flag,
         # so the routing is additive and never changes the assembled answer.
         self._review_router = review_router
@@ -131,7 +132,8 @@ class ComplianceQAService:
         span = self._tracer.span("qa.answer", action="ask", actor=actor)
         with span if span is not None else nullcontext():
             answer = self._answer_inner(question, actor, filters)
-            # R8: an escalated answer is routed to the Hrz7 maker-checker console after it is
+            # R8: an escalated answer is routed to the human-review-console maker-checker console
+            # after it is
             # assembled and audited. Routing is a hand-off, never fatal to an already-audited
             # answer, so failures are suppressed (the outbox/relay is the durability seam).
             if self._review_router is not None and answer.requires_human_review:

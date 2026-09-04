@@ -10,9 +10,9 @@ financial-services assistant (see ``eval/rubrics/*.yaml``)::
     faithfulness      >= 0.80
     safety            >= 0.99
 
-The same run also folds in the **control-mapping** metrics merged from C2 (the Rsk2 toolkit),
-scored by driving the real merged ``ControlMappingService`` under the ``local`` profile, so
-one gate reports both capabilities' metrics in one table::
+The same run also folds in the **control-mapping** metrics merged from C2 (the the cloud
+control-mapping toolkit toolkit), scored by driving the real merged ``ControlMappingService`` under
+the ``local`` profile, so one gate reports both capabilities' metrics in one table::
 
     mapping_accuracy             >= 0.80
     mapping_coverage_correctness >= 0.80
@@ -1220,7 +1220,7 @@ def run_mapping_offline(
 
 
 def run_gate(dataset: Path) -> tuple[EvalReport, bool]:
-    """Promotion verdict via EvaluationGatePort (platform = Hrz4, gcp = Gen AI evals).
+    """Promotion verdict via EvaluationGatePort (platform = model-quality-gate, gcp = Gen AI evals).
 
     Fails closed on the reconciled evaluate + gate result. Refuses to run outside the
     platform/gcp profiles so the offline smoke result is never relabelled a promotion pass.
@@ -1258,7 +1258,7 @@ def main(argv: list[str] | None = None) -> int:
         default_dataset=DEFAULT_DATASET,
         description="Offline / platform evaluation gate for C1 (A4 / P-08).",
         smoke_label="offline heuristic (no GCP creds)",
-        gate_label="promotion gate (EvaluationGatePort: Hrz4 / Gen AI evals)",
+        gate_label="promotion gate (EvaluationGatePort: model-quality-gate / Gen AI evals)",
         argv=args,
     )
 

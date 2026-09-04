@@ -1,6 +1,6 @@
-# Embedding and identity: client integration guide (Rsk1 compliance-advisory)
+# Embedding and identity: client integration guide (`compliance-advisory` compliance-advisory)
 
-How to drop the Rsk1 Compliance Assistant into an existing web application (or run it
+How to drop the `compliance-advisory` into an existing web application (or run it
 standalone) with the user journey intact and identity enforced server-side. The pattern
 is the catalog-wide `embeddable-secure-ui` slice; the fuller reference implementation
 (including the designed cross-origin modes) lives in `cdd-sow-research`.
@@ -29,7 +29,7 @@ The verified `Principal` supplies:
 
 - the **audit actor** (`principal.actor`, the verified subject) written into every WORM
   `AuditEvent`, and
-- the **entitlement principals and tenant** for authorization decisions. Rsk1's
+- the **entitlement principals and tenant** for authorization decisions. `compliance-advisory`'s
   retrieval corpus is public regulatory guidance (no per-case ACL partition), so the
   principals are not yet fed into a retrieval ACL; repos with governed, ACL-tagged
   knowledge bases (see `cdd-sow-research`) merge them into every KB query.
@@ -238,7 +238,7 @@ methods pinned to `GET, POST, OPTIONS` and headers to
 - [ ] `npm run assert-hydratable` passes against the built console: the served nonce is on
       every script tag, so the page actually hydrates rather than merely looking right.
 - [ ] Local personas are obviously fictional and bound ONLY under the local profile.
-- [ ] PEP is defense-in-depth: edge (IAP) -> Hrz1 guardrail -> this per-backend check.
+- [ ] PEP is defense-in-depth: edge (IAP) -> `agent-guardrail-gateway` -> this per-backend check.
 
 ## 6. Further layers (documented, not built in this slice)
 

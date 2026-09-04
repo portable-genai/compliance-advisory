@@ -1,4 +1,4 @@
-# Architecture: Rsk1 Compliance Assistant
+# Architecture: `compliance-advisory`
 
 > **Authority:** SPEC > ARCHITECTURE > COMPLIANCE > README > `docs/`. See
 > [`docs/doc-authority.md`](docs/doc-authority.md).
@@ -19,7 +19,7 @@ pieces fit together; it does not redefine them.
 
 ## 1. Hexagonal overview
 
-Rsk1 is a **ports-and-adapters** (hexagonal) application. The domain core in
+`compliance-advisory` is a **ports-and-adapters** (hexagonal) application. The domain core in
 [`src/compliance_advisory/domain/`](src/compliance_advisory/domain/) owns all
 orchestration and has **no** dependency on Google Cloud, ADK, FastAPI, or any framework , 
 only the Python standard library. Everything the domain needs from the outside world is
@@ -66,7 +66,7 @@ profiles import and run with **no GCP SDK installed**. The `local` profile is a 
 offline stack (SQLite FTS5 retrieval, deterministic LLM, heuristic guardrail, regex DLP,
 append-only local audit); `onprem` is the fail-fast migration target.
 
-### 1.1 Stable kernel versus Rsk1 vertical
+### 1.1 Stable kernel versus `compliance-advisory` vertical
 
 The domain has an explicit fork boundary even though backward compatibility keeps the public
 dataclasses in `domain/models.py`:
@@ -75,7 +75,7 @@ dataclasses in `domain/models.py`:
   guardrail/redaction verdicts, session/memory, audit, evaluation, registry/tool and freshness
   envelopes. Forks preserve their field and serialization contracts because ports and audit
   evidence depend on them.
-- The **Rsk1 vertical sections** are the regulatory taxonomy and the generated `Answer`,
+- The **`compliance-advisory` vertical sections** are the regulatory taxonomy and the generated `Answer`,
   `ChecklistItem`, `ControlChecklist`, `TestCase` and `RegulatorQuestion` artifacts, plus the
   `control_mapping/` and `horizon/` modules. A vertical fork may replace these while continuing
   to use the kernel envelopes.
@@ -102,16 +102,16 @@ named).
 | 1 | `RetrievalPort` | Passage retrieval | `gcp.agent_search_retrieval:AgentSearchRetrievalAdapter` | `local.retrieval:LocalFtsRetrievalAdapter` (SQLite FTS5) | `onprem.retrieval:OnPremRetrievalAdapter` |
 | 2 | `LLMPort` | Reasoning / triage | `gcp.gemini_llm:GeminiLLMAdapter` | `local.llm:LocalDeterministicLLMAdapter` | `onprem.llm:OnPremLLMAdapter` |
 | 3 | `GroundingPort` | Public-web grounding | `gcp.gemini_grounding:GeminiGoogleSearchGroundingAdapter` | `local.grounding:LocalDisabledGroundingAdapter` | `onprem.grounding:OnPremGroundingAdapter` |
-| 4 | `GuardrailPort` | Input/output screening (Hrz1) | `gcp.model_armor_guardrail:ModelArmorGuardrailAdapter` | `local.guardrail:LocalHeuristicGuardrailAdapter` | `onprem.guardrail:OnPremGuardrailAdapter` |
-| 5 | `PIIRedactionPort` | PII de-identification (Hrz1, P-04) | `gcp.dlp_redaction:DlpRedactionAdapter` | `local.redaction:LocalRegexRedactionAdapter` | `onprem.redaction:OnPremRedactionAdapter` |
+| 4 | `GuardrailPort` | Input/output screening (`agent-guardrail-gateway`) | `gcp.model_armor_guardrail:ModelArmorGuardrailAdapter` | `local.guardrail:LocalHeuristicGuardrailAdapter` | `onprem.guardrail:OnPremGuardrailAdapter` |
+| 5 | `PIIRedactionPort` | PII de-identification (`agent-guardrail-gateway`, P-04) | `gcp.dlp_redaction:DlpRedactionAdapter` | `local.redaction:LocalRegexRedactionAdapter` | `onprem.redaction:OnPremRedactionAdapter` |
 | 6 | `AgentRuntimePort` | Hosted agent | `gcp.agent_runtime:AgentRuntimeAdapter` | `local.runtime:LocalAgentRuntimeAdapter` | `onprem.runtime:OnPremAgentRuntimeAdapter` |
 | 7 | `SessionPort` | Per-case session state | `gcp.vertex_sessions:VertexSessionsAdapter` | `local.session:LocalSessionAdapter` | `onprem.session:OnPremSessionAdapter` |
 | 8 | `MemoryPort` | Durable analyst memory | `gcp.vertex_memory_bank:VertexMemoryBankAdapter` | `local.memory:LocalMemoryAdapter` | `onprem.memory:OnPremMemoryAdapter` |
-| 9 | `AuditSinkPort` | WORM audit (Hrz5, P-07) | `gcp.cloud_logging_audit:CloudLoggingAuditAdapter` | `local.audit:LocalAppendOnlyAuditAdapter` | `onprem.audit:OnPremAuditAdapter` |
-| 10 | `ObservabilityTracerPort` | Tracing + FinOps (Hrz5) | `gcp.cloud_trace_tracer:CloudTraceTracerAdapter` | `local.tracer:LocalNoopTracerAdapter` | `onprem.tracer:OnPremTracerAdapter` |
-| 11 | `EvaluationGatePort` | Eval gate (Hrz4, P-08) | `gcp.genai_eval:GenAiEvalAdapter` | `local.evaluation:LocalOfflineEvalAdapter` | `onprem.evaluation:OnPremEvalAdapter` |
-| 12 | `AgentRegistryPort` | A2A registry (Hrz3) | `gcp.a2a_registry:A2ARegistryAdapter` | `local.registry:LocalRegistryAdapter` | `onprem.registry:OnPremRegistryAdapter` |
-| 13 | `ToolCatalogPort` | Governed MCP tools (Hrz3) | `gcp.mcp_tool_catalog:McpToolCatalogAdapter` | `local.tool_catalog:LocalToolCatalogAdapter` | `onprem.tool_catalog:OnPremToolCatalogAdapter` |
+| 9 | `AuditSinkPort` | WORM audit (`agent-observability`, P-07) | `gcp.cloud_logging_audit:CloudLoggingAuditAdapter` | `local.audit:LocalAppendOnlyAuditAdapter` | `onprem.audit:OnPremAuditAdapter` |
+| 10 | `ObservabilityTracerPort` | Tracing + FinOps (`agent-observability`) | `gcp.cloud_trace_tracer:CloudTraceTracerAdapter` | `local.tracer:LocalNoopTracerAdapter` | `onprem.tracer:OnPremTracerAdapter` |
+| 11 | `EvaluationGatePort` | Eval gate (`model-quality-gate`, P-08) | `gcp.genai_eval:GenAiEvalAdapter` | `local.evaluation:LocalOfflineEvalAdapter` | `onprem.evaluation:OnPremEvalAdapter` |
+| 12 | `AgentRegistryPort` | A2A registry (`agent-registry`) | `gcp.a2a_registry:A2ARegistryAdapter` | `local.registry:LocalRegistryAdapter` | `onprem.registry:OnPremRegistryAdapter` |
+| 13 | `ToolCatalogPort` | Governed MCP tools (`agent-registry`) | `gcp.mcp_tool_catalog:McpToolCatalogAdapter` | `local.tool_catalog:LocalToolCatalogAdapter` | `onprem.tool_catalog:OnPremToolCatalogAdapter` |
 | 14 | `CorpusLedgerPort` | Freshness ledger | `gcp.alloydb_ledger:AlloyDBLedgerAdapter` | `local.ledger:LocalLedgerAdapter` (SQLite) | `onprem.ledger:OnPremLedgerAdapter` |
 | 15 | `CorpusIngestionPort` | Document ingestion | `gcp.agent_search_ingestion:AgentSearchIngestionAdapter` | `local.retrieval:LocalIngestionAdapter` | `onprem.ingestion:OnPremIngestionAdapter` |
 | 16 | `RequirementSourcePort` | Requirement text for control mapping | `adapters.requirements:RetrievalRequirementSourceAdapter` (in-process bind to `RetrievalPort`) | same adapter, follows the active profile's `RetrievalPort` | same adapter, inherits the on-prem retrieval placeholder's fail-fast |
@@ -126,7 +126,7 @@ server-side identity controls) and the §9 security catalogue. `RequirementSourc
 special: it does **not** carry its own backend. It binds **in-process** to whichever
 `RetrievalPort` adapter the active profile selects (the `compliance-reg-kb` Agent Search
 store on `gcp`, the SQLite FTS5 corpus on `local`), so there is exactly one reg KB. This
-single adapter replaced three retired Rsk2 paths: the standalone Gemini File Search store
+single adapter replaced three retired the cloud control-mapping toolkit paths: the standalone Gemini File Search store
 `control-mapping-reg-kb`, the HTTP hop from the toolkit to the assistant's `/ask`, and the
 duplicate local reg seed. `ControlInventoryPort` has **no** `platform` variant, posture is
 read where the service runs.
@@ -224,7 +224,7 @@ sequenceDiagram
 Key invariants:
 - **Redact before model and before audit**, PII never reaches the model, a trace span, or
   the WORM sink (P-04). The `AuditEvent` stores `redacted_prompt` / `redacted_response`.
-- **Both directions screened**, INPUT before retrieval, OUTPUT before return (Hrz1).
+- **Both directions screened**, INPUT before retrieval, OUTPUT before return (`agent-guardrail-gateway`).
 - **Everything inside a span**, but message content capture is OFF, so spans carry
   structure and token usage, never prompt/response text.
 - The Checklist / TestCase / RegulatorQuestion services follow the same shape; they default
@@ -273,7 +273,7 @@ sequenceDiagram
 - **`EvidencePackService.build`** runs the pipeline, derives gaps, computes the coverage
   summary, and stamps `requires_human_review=True` **unconditionally**: an evidence pack is
   the artifact handed to a regulator, so a human checker always signs it off (P-06). It is
-  routed to Hrz7 for review (R8).
+  routed to `human-review-console` for review (R8).
 - **Coverage is computed server-side** in `domain/control_mapping/_mapping.py` from which
   mapped controls are observed ENABLED; the model's coverage hint is only a fallback when no
   observation exists.
@@ -302,7 +302,7 @@ sequenceDiagram
     participant LLM as LLMPort (narration only)
     participant Trk as HorizonTrackerPort
     participant Aud as AuditSinkPort (WORM)
-    participant R7 as ReviewRouterPort (Hrz7)
+    participant R7 as ReviewRouterPort (`human-review-console`)
 
     Caller->>Svc: scan for one scope and tenant
     Svc->>Tr: span "horizon.scan"
@@ -334,7 +334,7 @@ sequenceDiagram
   the wire, so a reviewer can reconstruct the arithmetic without rerunning the scan.
 - **Ownership routing is deterministic** (topic rule, then regulator rule, then the
   configured default) and is itself treated as a consequential call: any routed change sets
-  `requires_human_review` and is routed to Hrz7 (R8).
+  `requires_human_review` and is routed to `human-review-console` (R8).
 - **The journey closes the loop into control mapping.** Open control gaps for the same
   regulator raise the materiality score, and a closure records the `control_ids` from the
   mapping module that evidence it.
@@ -450,14 +450,14 @@ flowchart TB
 
 ## 6. Dependency relationship to the horizontal platform
 
-Rsk1 (catalog **Rsk1**, group `rsk`) is a leaf application that depends on three platform
+`compliance-advisory` (catalog `compliance-advisory`, group `rsk`) is a leaf application that depends on three platform
 services. The dependency rules **R1..R6** (see [`COMPLIANCE.md`](COMPLIANCE.md)) require that
-those concerns are *not* re-implemented in Rsk1 but consumed from the platform when present.
-Rsk1 satisfies this two ways without changing the domain:
+those concerns are *not* re-implemented in `compliance-advisory` but consumed from the platform when present.
+`compliance-advisory` satisfies this two ways without changing the domain:
 
 ```mermaid
 flowchart LR
-    subgraph c1["Rsk1 (this repo)"]
+    subgraph c1["`compliance-advisory` (this repo)"]
         DOMAIN[Domain core]
         GUARD[GuardrailPort / PIIRedactionPort]
         AUDIT[AuditSinkPort]
@@ -472,25 +472,25 @@ flowchart LR
     end
 
     subgraph platform["profile = platform (inside the horizontal platform)"]
-        Hrz1[agent-guardrail-gateway]
-        Hrz5[agent-observability]
-        Hrz3[agent-registry]
+        `agent-guardrail-gateway`[agent-guardrail-gateway]
+        `agent-observability`[agent-observability]
+        `agent-registry`[agent-registry]
     end
 
     GUARD -- gcp --> MA
     AUDIT -- gcp --> CL
     REGP  -- gcp --> A2A
-    GUARD -- platform --> Hrz1
-    AUDIT -- platform --> Hrz5
-    REGP  -- platform --> Hrz3
+    GUARD -- platform --> `agent-guardrail-gateway`
+    AUDIT -- platform --> `agent-observability`
+    REGP  -- platform --> `agent-registry`
 ```
 
-| Dependency | Repo | Backs Rsk1 ports | HTTP contract (SPEC §6) |
+| Dependency | Repo | Backs `compliance-advisory` ports | HTTP contract (SPEC §6) |
 |------------|------|----------------|-------------------------|
-| **Hrz1** Guardrail Gateway (Model Armor + DLP) | `agent-guardrail-gateway` | `GuardrailPort`, `PIIRedactionPort` | `POST /v1/guardrail/screen`, `POST /v1/redact` |
-| **Hrz3** Registry (A2A + MCP catalog) | `agent-registry` | `AgentRegistryPort` | `POST/GET /v1/agents`, `/.well-known/agent-card.json` |
-| **Hrz5** Observability/Audit (WORM + Trace + FinOps) | `agent-observability` | `AuditSinkPort` | `POST /v1/audit`, `GET /v1/audit` |
-| **Hrz4** Eval gate | (Gen AI evaluation service) | `EvaluationGatePort` | promotion gate, not an HTTP dep |
+| `agent-guardrail-gateway` (Model Armor + DLP) | `agent-guardrail-gateway` | `GuardrailPort`, `PIIRedactionPort` | `POST /v1/guardrail/screen`, `POST /v1/redact` |
+| `agent-registry` (A2A + MCP catalog) | `agent-registry` | `AgentRegistryPort` | `POST/GET /v1/agents`, `/.well-known/agent-card.json` |
+| `agent-observability` (WORM + Trace + FinOps) | `agent-observability` | `AuditSinkPort` | `POST /v1/audit`, `GET /v1/audit` |
+| `model-quality-gate` | (Gen AI evaluation service) | `EvaluationGatePort` | promotion gate, not an HTTP dep |
 
 The `platform` adapters (`adapters/platform/remote_*.py`) are thin HTTP clients whose JSON
 field names mirror the domain dataclasses exactly (enums as strings), so swapping from the

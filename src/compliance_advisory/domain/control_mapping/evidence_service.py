@@ -45,7 +45,8 @@ class EvidencePackService:
         self._tracer = tracer
         self._audit = audit
         self._review = review_policy or MappingReviewPolicy()
-        # Rule R8: an evidence pack always requires human review, so it is routed to Hrz7 (the
+        # Rule R8: an evidence pack always requires human review, so it is routed to
+        # human-review-console (the
         # maker-checker console) via the shared review-kit, not left as a boolean. Optional so
         # existing callers/tests that build the service without a router still assemble the pack (it
         # just is not forwarded to a console).
@@ -64,7 +65,8 @@ class EvidencePackService:
 
         ``actor`` is the server-verified maker (the audit subject / non-repudiation identity);
         ``tenant`` is the verified tenant partition threaded from the request (the pack itself
-        carries no tenant field). Both flow to the R8 hand-off asserted to Hrz7. The default empty
+        carries no tenant field). Both flow to the R8 hand-off asserted to human-review-console. The
+        default empty
         ``tenant`` keeps existing callers/tests unaffected.
         """
         span = self._tracer.span(
@@ -90,7 +92,8 @@ class EvidencePackService:
         )
         self._audit_pack(actor, scope, pack)
 
-        # Rule R8: route the escalated, already-assembled, already-audited pack to Hrz7 for human
+        # Rule R8: route the escalated, already-assembled, already-audited pack to
+        # human-review-console for human
         # review. Routing is a hand-off, never fatal to a pack that is already assembled and
         # audited (the audit ESCALATED record is the durable trail), so any failure is suppressed.
         if self._review_router is not None and pack.requires_human_review:

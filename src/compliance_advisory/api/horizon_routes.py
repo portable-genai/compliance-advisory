@@ -102,7 +102,8 @@ def update_status(
     """Advance a tracked change, gated on the verified tenant.
 
     Closing a change as ``implemented`` or ``accepted_risk`` is consequential: it is
-    audited as an escalation and routed to Hrz7 for maker-checker sign-off (rule R8).
+    audited as an escalation and routed to human-review-console for maker-checker sign-off (rule
+    R8).
     """
     try:
         new_status = ImplementationStatus(request.status)

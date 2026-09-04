@@ -119,7 +119,7 @@ class GcpControl:
 
 @dataclass(frozen=True, slots=True)
 class RegRequirement:
-    """One regulatory obligation, sourced from the reg KB (Rsk1 retrieval)."""
+    """One regulatory obligation, sourced from the reg KB (compliance-advisory retrieval)."""
 
     id: str  # stable slug, e.g. "mas-trm-data-residency"
     regulator: Regulator

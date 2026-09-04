@@ -1,10 +1,10 @@
 """Regulatory horizon scanning: detect, assess, route, track (SPEC §7).
 
-The fourth Rsk1 capability, built ON the corpus and freshness ledger this repo already
-maintains rather than beside them. Public surface:
+The fourth compliance-advisory capability, built ON the corpus and freshness ledger this repo
+already maintains rather than beside them. Public surface:
 
 * :class:`HorizonScanService` — the pipeline (ledger diff -> deterministic assessment ->
-  advisory narration -> tracking -> audit -> Hrz7 routing).
+  advisory narration -> tracking -> audit -> human-review-console routing).
 * :class:`ImplementationTrackingService` — advance a tracked change to closure, fail-closed
   on the verified tenant.
 * :class:`HorizonPolicy` / :class:`HorizonPolicyConfig` — the pure decision engine and the

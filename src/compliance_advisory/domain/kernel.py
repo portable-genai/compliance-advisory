@@ -1,4 +1,4 @@
-"""The vertical-neutral kernel of the Rsk1 domain (practices-audit A7).
+"""The vertical-neutral kernel of the compliance-advisory domain (practices-audit A7).
 
 This module owns the machinery a fork of this repo inherits UNCHANGED when it swaps the
 compliance vertical for another one: provenance and citation envelopes, the source

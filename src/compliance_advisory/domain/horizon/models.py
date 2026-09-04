@@ -1,6 +1,6 @@
 """Domain models for regulatory horizon scanning (SPEC §7).
 
-Horizon scanning is the fourth capability of Rsk1, alongside the assistant, the
+Horizon scanning is the fourth capability of compliance-advisory, alongside the assistant, the
 checklist family and the control-mapping module. It answers a different question from
 "what does the regulation say": it answers **what just changed, does it apply to us, how
 much does it matter, who owns it, and is it implemented yet**.

@@ -1,10 +1,10 @@
 """Contract test: the merged app still exposes the C2 control-mapping surface unchanged.
 
-The C2->C1 merge mounts ``/map``, ``/evidence-pack`` and ``/gaps`` on the assistant's
-FastAPI app without colliding with its own surface (``/ask``, ``/checklist``, ...). An
-external consumer — Rsk3, the architecture validator — POSTs ``/evidence-pack`` and
-depends on that shape, so this pins the routes' existence and their response contracts,
-driving the real app over the real ``local`` adapters (no Google Cloud SDK).
+The C2->C1 merge mounts ``/map``, ``/evidence-pack`` and ``/gaps`` on the assistant's FastAPI app
+without colliding with its own surface (``/ask``, ``/checklist``, ...). An external consumer —
+architecture-validator, the architecture validator — POSTs ``/evidence-pack`` and depends on that
+shape, so this pins the routes' existence and their response contracts, driving the real app over
+the real ``local`` adapters (no Google Cloud SDK).
 
 Also asserts the domain invariant the pack shape rests on: an evidence pack ALWAYS
 requires human review (SPEC §5 / P-06 maker-checker).
@@ -87,7 +87,8 @@ def test_evidence_pack_returns_c2_shape_and_is_always_review(client: TestClient)
     assert sum(body["coverage_summary"].values()) == len(body["mappings"])
 
 
-#: The five fields Rsk3, the architecture validator, reads off every gap. Named once so the
+#: The five fields architecture-validator, the architecture validator, reads off every gap. Named
+#: once so the
 #: route test and the serialization test below cannot pin different sets.
 _GAP_FIELDS = frozenset({"requirement", "missing_controls", "severity", "remediation", "citations"})
 

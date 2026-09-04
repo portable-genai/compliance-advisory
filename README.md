@@ -1,4 +1,4 @@
-# Rsk1: Compliance Assistant & Control Mapper
+# `compliance-advisory`: Compliance Assistant & Control Mapper
 
 > **Authority:** SPEC > ARCHITECTURE > COMPLIANCE > README > `docs/`. See
 > [`docs/doc-authority.md`](docs/doc-authority.md).
@@ -15,8 +15,8 @@
 > Built ports-and-adapters on the **Gemini Enterprise Agent Platform**, pinned to
 > `asia-southeast1` (Singapore) for data residency.
 
-> **Control mapping is a module of this service.** The Rsk2 Cloud Control-Mapping Toolkit
-> sits in Rsk1 so the two capabilities share one regulatory knowledge base and one
+> **Control mapping is a module of this service.** The the cloud control-mapping toolkit Cloud Control-Mapping Toolkit
+> sits in `compliance-advisory` so the two capabilities share one regulatory knowledge base and one
 > deployment. The mapping module reads the bank's live GCP control posture (Security
 > Command Center + Cloud Asset Inventory + Assured Workloads) and evidences coverage
 > against the same requirement text the assistant cites.
@@ -39,9 +39,9 @@
 
 ---
 
-## 1. What Rsk1 produces
+## 1. What `compliance-advisory` produces
 
-Rsk1 spans one journey over **one shared regulatory knowledge base**. The **answer /
+`compliance-advisory` spans one journey over **one shared regulatory knowledge base**. The **answer /
 checklist** family answers a Compliance/Risk analyst's question and returns cited
 artifacts; the **control-mapping** family (the control-mapping module) turns the same cited
 requirements into a coverage assessment and an audit-ready evidence pack. Every artifact
@@ -79,11 +79,11 @@ carries regulator-grade provenance (regulator + jurisdiction + document + versio
 > BEFORE the model is called; the model only writes the rationale, and it is handed the
 > decisions as facts it must explain.
 
-Catalog identity: **Rsk1**, group **`rsk`** (de-risking toolkits for CISO / CRO /
-regulator), priority **P1**. Mandatory platform dependencies: **Hrz1** Guardrail Gateway,
-**Hrz3** Registry, **Hrz5** Observability/Audit, with the **Hrz4** eval gate enforced at
+Catalog identity: `compliance-advisory`, group **`rsk`** (de-risking toolkits for CISO / CRO /
+regulator), priority **P1**. Mandatory platform dependencies: `agent-guardrail-gateway`,
+`agent-registry`, `agent-observability`, with the `model-quality-gate` enforced at
 promotion. Each dependency is a separate repo; see
-[§9 Platform dependencies](#9-platform-dependencies). External consumer: **Rsk3**
+[§9 Platform dependencies](#9-platform-dependencies). External consumer: `architecture-validator`
 (architecture validator) POSTs `/evidence-pack` to this service, shape unchanged.
 
 Every artifact type, citation, and freshness record is a pure-stdlib dataclass in
@@ -170,7 +170,7 @@ sequence diagram, and the runtime topology.
 ## 3. Pinned GCP stack (current GA names, mid-2026)
 
 > Platform note: the product is **Gemini Enterprise Agent Platform**; the API host is
-> still `aiplatform.googleapis.com`. Rsk1 builds on the Agent
+> still `aiplatform.googleapis.com`. `compliance-advisory` builds on the Agent
 > Platform **API** layer, not the Gemini Enterprise *app*. Everything is pinned to
 > `asia-southeast1`. The authoritative source for the stack is [`SPEC.md`](SPEC.md) §3.
 
@@ -304,7 +304,7 @@ COMPLIANCE_PROFILE=local compliance ask "What does APRA CPS 230 require for crit
 
 ## 6. The 7-day fetch-at-runtime corpus
 
-Rsk1 does **not** vendor a regulatory corpus into the repo. Regulations change; a stale copy
+`compliance-advisory` does **not** vendor a regulatory corpus into the repo. Regulations change; a stale copy
 is a compliance risk. Instead the repo ships only a **source registry** plus a tiny
 synthetic sample, and the corpus is materialised at runtime with a **7-day TTL**:
 
@@ -380,7 +380,7 @@ The horizon module turns each detected movement into an owned, tracked obligatio
 
 Everything consequential is escalated: a routed change, a change at or above the configured
 `review_band`, and any `implemented` / `accepted_risk` closure set `requires_human_review`
-and are routed to the **Hrz7** maker-checker console (rule R8). The tracked journey is
+and are routed to the `human-review-console` maker-checker console (rule R8). The tracked journey is
 tenant-partitioned and fail-closed: a cross-tenant read or write is refused with **403**,
 never a 404 that would hide whether the change exists.
 
@@ -397,7 +397,7 @@ horizon:
 
 ---
 
-## 7. The eval gate (Hrz4 / P-08)
+## 7. The eval gate (`model-quality-gate` / P-08)
 
 No build is promoted without passing a quality gate. `EvaluationGatePort.evaluate()` runs a
 golden dataset through the **Gen AI evaluation service** and returns an `EvalReport` scored
@@ -431,7 +431,7 @@ the gate must pass before a release can be promoted to Agent Runtime. See
 | **VPC Service Controls** | All managed services sit inside a service perimeter so data cannot egress to other projects/regions. |
 | **CMEK** (regional) | Customer-managed Cloud KMS keys (`COMPLIANCE_KMS_KEY`) encrypt Agent Search, AlloyDB, and the log bucket. |
 | **PII redaction before model** (**P-04**) | `DlpRedactionAdapter` de-identifies inbound text *before* it reaches the model or any audit/trace sink. |
-| **Guardrail screening** (Hrz1) | `ModelArmorGuardrailAdapter` screens INPUT and OUTPUT for prompt injection, jailbreak, sensitive data, and malicious URLs. |
+| **Guardrail screening** (`agent-guardrail-gateway`) | `ModelArmorGuardrailAdapter` screens INPUT and OUTPUT for prompt injection, jailbreak, sensitive data, and malicious URLs. |
 | **WORM audit** (**P-07**) | `CloudLoggingAuditAdapter` writes already-redacted `AuditEvent`s to a **locked** Cloud Logging bucket (retention 2557 days, irreversible). |
 | **Tracing without PII** | Cloud Trace via OpenTelemetry with message-content capture **OFF**: spans carry structure, never prompt/response text. |
 | **Maker-checker** (**P-06**) | Every generated answer and consequential artifact requires review; bank-owned config controls escalation signals but cannot silently remove the checker. |
@@ -445,16 +445,16 @@ The complete mapping of **every** General Principle (P-01..P-12) and dependency 
 
 ## 9. Platform dependencies
 
-Rsk1 depends on three sibling horizontal-platform services. When deployed standalone, the `gcp`
+`compliance-advisory` depends on three sibling horizontal-platform services. When deployed standalone, the `gcp`
 adapters call Model Armor / DLP / Cloud Logging directly; when deployed inside the full
 platform, the `platform` adapters delegate to the services over HTTP (contracts in
 [`SPEC.md`](SPEC.md) §6).
 
-| Dep | Repo | Rsk1 ports it backs | `platform` adapter |
+| Dep | Repo | `compliance-advisory` ports it backs | `platform` adapter |
 |-----|------|-------------------|--------------------|
-| **Hrz1** Guardrail Gateway | `agent-guardrail-gateway` | `GuardrailPort`, `PIIRedactionPort` | `RemoteGuardrailAdapter` |
-| **Hrz3** Registry | `agent-registry` | `AgentRegistryPort` | `RemoteRegistryAdapter` |
-| **Hrz5** Observability/Audit | `agent-observability` | `AuditSinkPort` | `RemoteAuditAdapter` |
+| `agent-guardrail-gateway` | `agent-guardrail-gateway` | `GuardrailPort`, `PIIRedactionPort` | `RemoteGuardrailAdapter` |
+| `agent-registry` | `agent-registry` | `AgentRegistryPort` | `RemoteRegistryAdapter` |
+| `agent-observability` | `agent-observability` | `AuditSinkPort` | `RemoteAuditAdapter` |
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) §6 for the dependency relationship in detail.
 
@@ -479,7 +479,7 @@ flowchart LR
     pipelines["pipelines/<br/>corpus fetch/ingest + sources/registry.yaml"]
     srcconfig["config.py<br/>Settings + Container (DI for the hexagon)"]
     config["config/settings.yaml<br/>port -> adapter bindings, region, models, retention"]
-    eval["eval/<br/>run_eval.py + golden dataset (the Hrz4 gate)"]
+    eval["eval/<br/>run_eval.py + golden dataset (the `model-quality-gate`)"]
     terraform["terraform/<br/>asia-southeast1 infra (Agent Search, AlloyDB, WORM bucket)"]
     ui["ui/<br/>React / Next.js app"]
     tests["tests/<br/>contract + unit tests (run under the local profile)"]
@@ -533,7 +533,7 @@ flowchart LR
 
 ## Cost and latency
 
-Size this system's cost and latency with the shared interactive calculator: [**live**](https://portable-genai.github.io/cost-latency-calculator/calc/calculator.html?system=Rsk1) or the [in-repo page](cost-latency-calculator.html). The engine and the pricing book are maintained once in [cost-latency-calculator](https://github.com/portable-genai/cost-latency-calculator).
+Size this system's cost and latency with the shared interactive calculator: [**live**](https://portable-genai.github.io/cost-latency-calculator/calc/calculator.html?system=compliance-advisory) or the [in-repo page](cost-latency-calculator.html). The engine and the pricing book are maintained once in [cost-latency-calculator](https://github.com/portable-genai/cost-latency-calculator).
 
 ## License
 

@@ -1,7 +1,7 @@
 """RequirementSourcePort — the regulatory knowledge base (reg KB) for control mapping.
 
 Supplies the regulatory obligations (with regulator-grade citations) that controls are
-mapped to. In the merged assistant this port binds IN-PROCESS to Rsk1's own retrieval
+mapped to. In the merged assistant this port binds IN-PROCESS to compliance-advisory's own retrieval
 port (the ``compliance-reg-kb`` Agent Search store / local FTS5 index) — there is one
 regulatory knowledge base, shared between the assistant's answer path and the
 control-mapping capability. The old standalone Gemini File Search store, the HTTP hop to

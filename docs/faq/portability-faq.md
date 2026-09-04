@@ -48,7 +48,7 @@ Protocol and construct with a single `Settings` arg, so the *interface contract*
 sovereign migration is proven and enforced by CI today (the eval gate runs on
 `COMPLIANCE_PROFILE=onprem`). The actual on-prem implementations are the migration work,
 scoped in [`docs/onprem-migration.md`](../onprem-migration.md). This repo is not the
-sovereign-exit *planner* (that is the sibling **Rsk5 exit-portability planner**: APRA CPS
+sovereign-exit *planner* (that is the sibling **the exit-and-portability planner exit-portability planner**: APRA CPS
 230, MAS/HKMA outsourcing); this repo is one of the systems whose exit that planner reasons
 about.
 
@@ -59,15 +59,15 @@ default, plus the Org Policy resource-location allowlist, CMEK, and VPC-SC), and
 is the ability to change *where* the stack runs by configuration. They are orthogonal. The
 region is validated to fail fast (the Terraform `region` variable rejects anything but the
 pinned region), and a second region is a tfvars change, not a fork. Residency enforcement
-infra overlaps with the sibling **Rsk4 residency validator** (a CI gate for region
+infra overlaps with the sibling **the data-residency validator residency validator** (a CI gate for region
 violations), which a fork should run rather than re-implement.
 
 ### Does the knowledge base lock us in?
 
 No. Retrieval is a port (`ports/retrieval.py`) with a managed adapter (Agent Search under
 `gcp`) and an offline adapter (SQLite FTS5 under `local`). The governed enterprise knowledge
-base is the sibling **Hrz2** system, consumed through the same port; a fork can point the
-port at Hrz2, at managed Agent Search, or at the offline index without any domain change. The
+base is the sibling `enterprise-knowledge-base` system, consumed through the same port; a fork can point the
+port at `enterprise-knowledge-base`, at managed Agent Search, or at the offline index without any domain change. The
 regulatory corpus itself is defined by data (`pipelines/sources/registry.yaml`), not code.
 
 ### What is NOT yet fully portable?

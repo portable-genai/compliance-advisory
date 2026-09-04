@@ -181,7 +181,7 @@ def act_4_identity() -> None:
 
 def main() -> int:
     os.environ.setdefault("COMPLIANCE_PROFILE", "local")
-    print("Rsk1 portability tour: offline proof of the three portability questions")
+    print("compliance-advisory portability tour: offline proof of the three portability questions")
     print("(experience/identity, compute, data). No Google Cloud, no API key.")
 
     act_1_profile_swap()

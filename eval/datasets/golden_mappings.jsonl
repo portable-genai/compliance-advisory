@@ -8,7 +8,7 @@
 # supplies a candidate control set for these obligation ids; the service then computes coverage
 # from the live local seed posture (residency controls ENABLED, CMEK MISCONFIGURED, WORM audit
 # log DISABLED), which is exactly why mas-data-residency resolves FULL and the APRA/HKMA rows
-# resolve NONE. The richer 10-example production set is scored by the Hrz4 / Gen AI gate.
+# resolve NONE. The richer 10-example production set is scored by the model-quality-gate / Gen AI gate.
 {"id": "mas-data-residency", "requirement": "mas-data-residency", "regulator": "MAS", "source_id": "mas-trm-guidelines-2021", "expected_control_families": ["vpc_sc", "org_policy", "assured_workloads"], "expected_coverage": "full"}
 {"id": "apra-encryption-at-rest", "requirement": "apra-encryption-at-rest", "regulator": "APRA", "source_id": "apra-cps-234-2019", "expected_control_families": ["cmek"], "expected_coverage": "none"}
 {"id": "hkma-audit-trail", "requirement": "hkma-audit-trail", "regulator": "HKMA", "source_id": "hkma-cloud-computing-2022", "expected_control_families": ["logging"], "expected_coverage": "none"}

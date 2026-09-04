@@ -7,7 +7,7 @@ here. Read it first. This file carries only what is specific to this one.
 
 ## What this is
 
-Catalog id **Rsk1**. Q&A + use-case-specific control checklists, automated test cases
+Catalog id `compliance-advisory`. Q&A + use-case-specific control checklists, automated test cases
 and the exact questions a regulator/CRO will ask, over a KB of MAS / HKMA / APRA / FSA +
 cloud/AI guidance.
 
@@ -15,7 +15,7 @@ cloud/AI guidance.
 
 | | |
 |---|---|
-| Catalog id | `Rsk1` |
+| Catalog id | `compliance-advisory` |
 | Package | `src/compliance_advisory/` |
 | Profile variable | `COMPLIANCE_PROFILE` |
 | Adapter families | `gcp`, `live`, `local`, `onprem`, `platform` |

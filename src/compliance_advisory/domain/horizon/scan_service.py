@@ -11,7 +11,7 @@ The pipeline, in order, all inside one tracer span::
       -> llm.generate(narrate, structured JSON)   [advisory prose ONLY]
       -> tracker.upsert  (idempotent per change id; existing human status preserved)
       -> audit.record
-      -> review_router.route(...)         (rule R8: escalations go to Hrz7)
+      -> review_router.route(...)         (rule R8: escalations go to human-review-console)
 
 The ordering is the control: the assessment is complete and audited BEFORE the model is
 called, so a malformed, empty or hostile model reply can only cost the scan its prose. The
@@ -309,7 +309,9 @@ class HorizonScanService:
         )
 
     def _route(self, scan: HorizonScan, actor: str, tenant: str) -> None:
-        """Rule R8: every escalated assessment is routed to Hrz7, not left as a boolean."""
+        """Rule R8: every escalated assessment is routed to human-review-console, not left as a
+        boolean.
+        """
         if self._review_router is None:
             return
         for assessment in scan.assessments:

@@ -1,6 +1,6 @@
 # scc_asset_feed.tf — Live control-posture sources: SCC + Cloud Asset Inventory feed.
 #
-# Merged in from the Rsk2 control-mapping module. The compliance assistant reads the
+# Merged in from the the cloud control-mapping toolkit control-mapping module. The compliance assistant reads the
 # live control posture (not a point-in-time snapshot): Security Command Center supplies
 # findings (the ENABLED / MISCONFIGURED signal) and a Cloud Asset Inventory feed streams
 # the realised configuration of org-policy constraints and resources so the merged

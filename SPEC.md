@@ -1,4 +1,4 @@
-# Rsk1 Compliance Assistant: Build Specification
+# `compliance-advisory`: Build Specification
 
 > **Authority:** SPEC > ARCHITECTURE > COMPLIANCE > README > `docs/`. See
 > [`docs/doc-authority.md`](docs/doc-authority.md).
@@ -9,7 +9,7 @@
 > before writing any adapter, service, test, or Terraform. Do not change the contract;
 > implement against it.
 
-## 1. What Rsk1 is
+## 1. What `compliance-advisory` is
 
 A grounded RAG + agentic assistant **and control mapper** for Compliance/Risk/CISO teams at
 APAC banks, over a knowledge base of **MAS / HKMA / APRA / FSA** regulations plus
@@ -51,9 +51,9 @@ Horizon scanning reuses the **same** corpus and the **same** freshness ledger: t
 was extended with the generation it supersedes so it can be diffed, never shadowed by a
 second store (§7.1).
 
-Catalog identity: **Rsk1**, group **rsk** (De-risking toolkits / CISO·CRO·regulator), priority **P1**.
-Mandatory platform dependencies: **Hrz1** Guardrail Gateway, **Hrz3** Registry, **Hrz5** Observability/Audit
-(eval gate **Hrz4** at promotion). Each dependency is a separate repo: `agent-guardrail-gateway`,
+Catalog identity: `compliance-advisory`, group **rsk** (De-risking toolkits / CISO·CRO·regulator), priority **P1**.
+Mandatory platform dependencies: `agent-guardrail-gateway`, `agent-registry`, `agent-observability`
+(eval gate `model-quality-gate` at promotion). Each dependency is a separate repo: `agent-guardrail-gateway`,
 `agent-registry`, `agent-observability`.
 
 ## 2. Locked decisions
@@ -70,7 +70,7 @@ Mandatory platform dependencies: **Hrz1** Guardrail Gateway, **Hrz3** Registry, 
 | Lock-in | Ports-and-adapters. GCP adapters are primary; **on-prem placeholder adapters** are `NotImplementedError` stubs satisfying the same Protocols (no open-source product named). Migration target is Google Distributed Cloud. |
 | Control mapping | A **module of this service** (`domain/control_mapping/`), not a separate repo. Adds the `/map`, `/gaps`, `/evidence-pack` APIs and two ports (`RequirementSourcePort`, `ControlInventoryPort`). Coverage is computed **server-side** in `domain/control_mapping/_mapping.py` from which mapped controls are observed ENABLED (the model's coverage hint is only a fallback). |
 | Reg-KB unification | **One** regulatory knowledge base. The mapping requirement source binds **in-process** to the assistant's existing retrieval (`RetrievalPort`, the `compliance-reg-kb` Agent Search store on `gcp`). Retired by the merge: the duplicate Gemini File Search store `control-mapping-reg-kb`, the old HTTP hop from the toolkit to the assistant's `/ask`, and the duplicate local reg seed. APRA CPS 234 (Information Security), the one reg instrument unique to the old toolkit seed, was carried into this repo's shared local corpus. |
-| Horizon scanning | A **module of this service** (`domain/horizon/`). Change detection diffs the EXISTING AlloyDB/SQLite freshness ledger (extended with the superseded generation), applicability and materiality are pure code over config-owned thresholds (`horizon:` in `config/settings.yaml`), ownership routing is deterministic, and every consequential call routes to Hrz7. Adds `/horizon/*` and two ports (`RegSourceCatalogPort`, `HorizonTrackerPort`). |
+| Horizon scanning | A **module of this service** (`domain/horizon/`). Change detection diffs the EXISTING AlloyDB/SQLite freshness ledger (extended with the superseded generation), applicability and materiality are pure code over config-owned thresholds (`horizon:` in `config/settings.yaml`), ownership routing is deterministic, and every consequential call routes to `human-review-console`. Adds `/horizon/*` and two ports (`RegSourceCatalogPort`, `HorizonTrackerPort`). |
 | Posture sources | The mapping module reads the live GCP control posture from **Security Command Center + Cloud Asset Inventory + Assured Workloads** (`adapters/gcp/scc_inventory.py`), a canned deterministic posture on `local`, a fail-fast placeholder on `onprem`. No remote-platform variant: posture is read where the service runs. |
 
 ## 3. Pinned stack (current GA, mid-2026)
@@ -214,7 +214,7 @@ requirement_source.fetch(scope, regulator)     [empty -> RequirementsEmptyError]
   runs the mapping pipeline, derives gaps, computes the coverage summary, and stamps
   `requires_human_review=True` unconditionally.
 * `MappingReviewPolicy` (maker-checker, P-06): a PARTIAL/NONE mapping or a HIGH/CRITICAL gap
-  requires human review; an evidence pack always does. Escalations route to Hrz7 (rule R8).
+  requires human review; an evidence pack always does. Escalations route to `human-review-console` (rule R8).
 * The shared machinery (LLM-request assembly, structured-output parsing, id→object
   resolution, coverage computation, severity coercion) lives in
   `domain/control_mapping/_mapping.py`.
@@ -239,27 +239,27 @@ posture map to **HTTP 422** with a clear detail (not a 500).
 * `POST /evidence-pack {scope, regulator?}` → `EvidencePack` (always
   `requires_human_review=true`)
 
-**External consumer preserved:** Rsk3 (architecture validator) POSTs `/evidence-pack` to
+**External consumer preserved:** `architecture-validator` (architecture validator) POSTs `/evidence-pack` to
 this service, shape **unchanged** from the standalone toolkit; its client is being repointed
 to this service's URL in the same workstream.
 
-### 6.1 Horizontal-platform service HTTP contracts (so Rsk1 remote clients match the services)
+### 6.1 Horizontal-platform service HTTP contracts (so `compliance-advisory` remote clients match the services)
 
 All JSON field names mirror the domain dataclasses; enums are strings.
 
-**Hrz1 `agent-guardrail-gateway`** (backed by Model Armor + DLP)
+**`agent-guardrail-gateway`** (backed by Model Armor + DLP)
 * `POST /v1/guardrail/screen` `{ "text": str, "direction": "input"|"output" }` →
   `{ "allowed": bool, "direction": str, "findings": [{"category":str,"confidence":str,"detail":str}], "sanitized_text": str|null, "reason": str }`
 * `POST /v1/redact` `{ "text": str }` → `{ "text": str, "findings": [{"info_type":str,"count":int}] }`
 * `GET /healthz` → `{ "status": "ok" }`
 
-**Hrz3 `agent-registry`** (A2A + MCP catalog, AlloyDB-backed)
+**`agent-registry`** (A2A + MCP catalog, AlloyDB-backed)
 * `POST /v1/agents` `{AgentCard}` → 201
 * `GET /v1/agents/{name}` → `{AgentCard}`
 * `GET /v1/agents` → `[{AgentCard}]`
 * `GET /.well-known/agent-card.json` → the registry's own card
 
-**Hrz5 `agent-observability`** (WORM logging + Cloud Trace + FinOps)
+**`agent-observability`** (WORM logging + Cloud Trace + FinOps)
 * `POST /v1/audit` `{AuditEvent}` → 202
 * `GET /v1/audit?actor=&action=&limit=` → recent redacted events (read-back for demos)
 * OTLP trace ingest is infra (collector), not in this HTTP contract.
@@ -282,7 +282,7 @@ owns it, and is it implemented yet.**
 | Applicability + materiality are PURE CODE | `domain/horizon/policy.py` decides both from config-owned numbers. The LLM narrates the rationale and never produces the score. |
 | Policy numbers live in config (B4) | `config/settings.yaml` under `horizon:`; the dataclass defaults in `policy.py` ARE the reference policy an adopter overrides. |
 | Ownership routing is deterministic | First matching topic rule, then a regulator rule, then the configured default owner. |
-| Every consequential call is human-reviewed | A routed change, a change at/above the configured review band, and a closure as `implemented` / `accepted_risk` all set `requires_human_review` and route to Hrz7 via `review-kit` (rule R8). |
+| Every consequential call is human-reviewed | A routed change, a change at/above the configured review band, and a closure as `implemented` / `accepted_risk` all set `requires_human_review` and route to `human-review-console` via `review-kit` (rule R8). |
 | Materiality is linked to the control-mapping journey | Open control gaps for the same regulator are a materiality driver, so a change landing where the bank already fails scores higher. |
 
 ### 7.1 Change detection (`domain/horizon/detection.py`)

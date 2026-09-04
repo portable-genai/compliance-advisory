@@ -1,10 +1,10 @@
 """A7: the kernel/vertical split is a real dependency direction, not a label.
 
-The check that matters is not "a module named ``kernel`` exists". Before this file, Rsk1
-had no kernel module at all and ARCHITECTURE.md section 1.1 plus a static doc test were
-the whole of the boundary: comment banners inside a single mixed ``domain/models.py``. A
-fork that wanted only the vertical-neutral envelopes still had to import the compliance
-artifacts it was about to rewrite, so the boundary could not be enforced by anything.
+The check that matters is not "a module named ``kernel`` exists". Before this file,
+compliance-advisory had no kernel module at all and ARCHITECTURE.md section 1.1 plus a static doc
+test were the whole of the boundary: comment banners inside a single mixed ``domain/models.py``. A
+fork that wanted only the vertical-neutral envelopes still had to import the compliance artifacts it
+was about to rewrite, so the boundary could not be enforced by anything.
 
 So the primary assertion here is EXECUTED, not read: a fresh interpreter imports
 ``compliance_advisory.domain.kernel`` and reports which ``compliance_advisory`` modules
@@ -72,7 +72,7 @@ KERNEL_NAMES = (
     "utcnow",
 )
 
-# The Rsk1 artifacts a fork rewrites. None of them may live in the kernel.
+# The compliance-advisory artifacts a fork rewrites. None of them may live in the kernel.
 VERTICAL_NAMES = (
     "Answer",
     "ChecklistItem",

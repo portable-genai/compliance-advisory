@@ -1,10 +1,11 @@
-"""R8 routing: an escalated compliance answer is routed to Hrz7 via the shared review-kit.
+"""R8 routing: an escalated compliance answer is routed to human-review-console via the shared
+review-kit.
 
 A low-confidence or high-severity answer sets ``requires_human_review`` (P-06), so rule R8 says it
-MUST be handed to the Hrz7 maker-checker console rather than left as a boolean. These tests prove
-the producer half of that loop end-to-end against the offline local router (an in-memory outbox),
-and prove the redact-before-wire boundary so no raw customer identifier reaches the console. All
-data is fictional.
+MUST be handed to the human-review-console maker-checker console rather than left as a boolean.
+These tests prove the producer half of that loop end-to-end against the offline local router (an
+in-memory outbox), and prove the redact-before-wire boundary so no raw customer identifier reaches
+the console. All data is fictional.
 """
 
 from __future__ import annotations
@@ -60,7 +61,9 @@ def test_answer_routes_escalated_answer_to_outbox(
     assert answer.requires_human_review
 
     pending = router.outbox.pending()
-    assert len(pending) == 1, "the escalated answer must be routed to Hrz7 exactly once"
+    assert len(pending) == 1, (
+        "the escalated answer must be routed to human-review-console exactly once"
+    )
     review = pending[0].review
     assert review.action == "compliance_answer:ask"
     assert review.maker == ACTOR

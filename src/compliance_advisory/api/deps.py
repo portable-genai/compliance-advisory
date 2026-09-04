@@ -176,7 +176,7 @@ def build_regulator_question_service(container: Container) -> RegulatorQuestionS
 # control-mapping pipeline reasons over the bank's own cloud control posture, not customer
 # PII, so it does NOT route through the assistant's Model Armor guardrail or DLP redaction
 # (R1 / P-04 = N/A; see COMPLIANCE.md). The evidence-pack service additionally takes the
-# shared review_router so its always-review deliverable is routed to Hrz7 (rule R8).
+# shared review_router so its always-review deliverable is routed to human-review-console (rule R8).
 # --------------------------------------------------------------------------- #
 
 

@@ -1,14 +1,14 @@
 """Shared conversion from an escalated compliance answer to an ``review-kit`` Review payload.
 
-Lives in the adapter layer (not the pure domain) because it depends on the kit. Redacts the
-subject descriptor, summary and every citation snippet before they leave the process (R1 / P-04
-boundary) so no raw customer identifier reaches Hrz7 over the wire; Hrz7 redacts again before its
-own audit write (defense in depth). This repo has neither ``pii-kit`` nor a
+Lives in the adapter layer (not the pure domain) because it depends on the kit. Redacts the subject
+descriptor, summary and every citation snippet before they leave the process (R1 / P-04 boundary) so
+no raw customer identifier reaches human-review-console over the wire; human-review-console redacts
+again before its own audit write (defense in depth). This repo has neither ``pii-kit`` nor a
 ``domain/pii_patterns`` module, so the redactor mirrors the same identifier set the local DLP
 stand-in masks (:class:`~compliance_advisory.adapters.local.redaction.LocalRegexRedactionAdapter`:
 SG NRIC/FIN, email, SG phone). The maker (the verified actor who originated the answer) and the
-tenant are asserted here and trusted by Hrz7 because this is an authenticated S2S caller (per-hop
-OBO is the deferred next layer).
+tenant are asserted here and trusted by human-review-console because this is an authenticated S2S
+caller (per-hop OBO is the deferred next layer).
 """
 
 from __future__ import annotations
@@ -88,7 +88,9 @@ def _kit_citations(answer: Answer) -> tuple[KitCitation, ...]:
 
 
 def answer_to_review(answer: Answer, *, maker: str, tenant: str = "") -> Review:
-    """Build the review a producer submits to Hrz7 when a compliance answer escalates."""
+    """Build the review a producer submits to human-review-console when a compliance answer
+    escalates.
+    """
     redacted_question = _redact(answer.question)
     descriptor = f"Compliance answer to: {redacted_question}"
     summary = (
@@ -117,7 +119,8 @@ def answer_to_review(answer: Answer, *, maker: str, tenant: str = "") -> Review:
 # --------------------------------------------------------------------------- #
 # Evidence-pack review payload (control-mapping capability, merged from C2)
 # --------------------------------------------------------------------------- #
-# The second R8 path against the SAME Hrz7 contract: an evidence pack is ALWAYS routed for
+# The second R8 path against the SAME human-review-console contract: an evidence pack is ALWAYS
+# routed for
 # human review. Redaction here is deliberately a whitespace-normalising clean, NOT PII
 # masking: the control-mapping capability reasons over the bank's OWN cloud control posture
 # plus public regulatory text, never customer/PII data (R1 / P-04 = N/A; see COMPLIANCE.md).
@@ -180,7 +183,9 @@ def _pack_kit_citations(pack: EvidencePack) -> tuple[KitCitation, ...]:
 
 
 def pack_to_review(pack: EvidencePack, *, maker: str, tenant: str = "") -> Review:
-    """Build the review a producer submits to Hrz7 when an evidence pack escalates."""
+    """Build the review a producer submits to human-review-console when an
+    evidence pack escalates.
+    """
     descriptor = (
         f"Evidence pack for scope {pack.scope} "
         f"({len(pack.mappings)} mappings, {len(pack.gaps)} gaps)"
@@ -207,7 +212,8 @@ def pack_to_review(pack: EvidencePack, *, maker: str, tenant: str = "") -> Revie
 # --------------------------------------------------------------------------- #
 # Horizon-scanning review payloads
 # --------------------------------------------------------------------------- #
-# The third and fourth R8 paths against the SAME Hrz7 contract: an assessed regulatory
+# The third and fourth R8 paths against the SAME human-review-console contract: an assessed
+# regulatory
 # change (ownership routing plus a consequential materiality call) and a closure of a
 # tracked change (implemented / accepted risk). As with control mapping, redaction here is
 # a whitespace-normalising clean, NOT PII masking: horizon scanning reasons over published
@@ -238,7 +244,8 @@ def _horizon_kit_citations(citations: tuple[Citation, ...]) -> tuple[KitCitation
 
 
 def assessment_to_review(assessment: HorizonAssessment, *, maker: str, tenant: str = "") -> Review:
-    """Build the review submitted to Hrz7 when an assessed regulatory change escalates.
+    """Build the review submitted to human-review-console when an assessed regulatory change
+    escalates.
 
     The summary carries the DECIDED numbers and the driver arithmetic behind them, so the
     checker can verify the materiality call without rerunning the scan.
@@ -272,7 +279,7 @@ def assessment_to_review(assessment: HorizonAssessment, *, maker: str, tenant: s
 
 
 def implementation_to_review(item: ImplementationItem, *, maker: str, tenant: str = "") -> Review:
-    """Build the review submitted to Hrz7 when a tracked change is closed.
+    """Build the review submitted to human-review-console when a tracked change is closed.
 
     ``implemented`` and ``accepted_risk`` both assert the bank's regulatory position, so
     both are maker-checker events rather than a unilateral status edit.

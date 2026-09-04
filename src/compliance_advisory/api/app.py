@@ -242,7 +242,8 @@ add_loopback_exposure_guard(
 
 # Control-mapping capability (merged from C2): mounts /map, /evidence-pack, /gaps. No
 # collision with /ask, /checklist, /testcases, /regulator-questions. /evidence-pack shape
-# is preserved unchanged for its external consumer (Rsk3, the architecture validator).
+# is preserved unchanged for its external consumer (architecture-validator, the architecture
+# validator).
 app.include_router(control_mapping_router)
 app.include_router(horizon_router)
 

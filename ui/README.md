@@ -1,9 +1,9 @@
-# Rsk1 Compliance Assistant: Demo UI
+# `compliance-advisory`: Demo UI
 
-A polished, banking-grade demo console for **Rsk1**, the grounded RAG + agentic
+A polished, banking-grade demo console for `compliance-advisory`, the grounded RAG + agentic
 assistant for Compliance / Risk teams at APAC banks (MAS / HKMA / APRA / FSA plus
 cross-jurisdiction cloud & AI guidance). It is a thin presentation layer over the
-Rsk1 FastAPI backend, it renders the four cited artifacts and the governance
+`compliance-advisory` FastAPI backend, it renders the four cited artifacts and the governance
 signals, and never bypasses the guardrail or maker–checker gates.
 
 Built with **Next.js (App Router) + TypeScript + Tailwind**. Dependencies are kept
@@ -20,7 +20,7 @@ minimal: `next`, `react`, `react-dom`, `tailwindcss`, `postcss`, `autoprefixer`,
 - **Artifact tabs**, **Answer | Checklist | Test Cases | Regulator Questions**,
   each with regulator + jurisdiction badges, document title, version, page, and a
   link on every citation.
-- **Right observability panel**, Hrz1 guardrail verdict (input/output), Hrz4
+- **Right observability panel**, `agent-guardrail-gateway` verdict (input/output), `model-quality-gate`
   eval/confidence, PII redaction tallies, trace id, decision pill, and a prominent
   **"Human review required"** banner for the maker–checker gate.
 - **Corpus freshness**, a live table from `/corpus/status` showing the 7-day
@@ -42,7 +42,7 @@ second reviewer (checker) per General Principle **P-06**.
 ## Prerequisites
 
 - Node.js 18.18+ (tested on Node 20/22)
-- The Rsk1 FastAPI backend running and reachable (default `http://localhost:8000`)
+- The `compliance-advisory` FastAPI backend running and reachable (default `http://localhost:8000`)
 
 ## Configure
 
@@ -190,7 +190,7 @@ flowchart LR
 ## Notes
 
 - Pure presentation: no secrets, no direct cloud calls. All data comes from the
-  Rsk1 backend over the documented routes.
+  `compliance-advisory` backend over the documented routes.
 - Region/branding reflects the locked decisions (Singapore `asia-southeast1`).
 - Graceful degradation: every endpoint surfaces clear errors in-line; the corpus
   table and health pill show backend reachability without crashing the console.

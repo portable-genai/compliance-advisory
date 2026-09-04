@@ -1,6 +1,6 @@
-# Demo guide - Rsk1 Compliance Assistant & Control Mapper
+# Demo guide - `compliance-advisory`
 
-Step-by-step scripts for demoing Rsk1 four ways:
+Step-by-step scripts for demoing `compliance-advisory` four ways:
 
 - **Demo A - Grounded compliance, four cited artifacts** (the headline flow): for one
   Compliance / Risk use case the assistant produces a grounded **Answer**, a **Control
@@ -323,13 +323,13 @@ curl -s localhost:8080/evidence-pack -H 'content-type: application/json' -d '{
 NONE) **computed server-side** from which mapped controls are observed ENABLED, not taken on
 the model's word; every mapping cites the same regulator source and page the assistant
 cites (one shared reg KB); the evidence pack is **always** human-review gated (maker-checker,
-P-06) and routes to Hrz7 (R8). The mapping module runs **without** guardrail or DLP steps by
+P-06) and routes to `human-review-console` (R8). The mapping module runs **without** guardrail or DLP steps by
 design, it reasons over the bank's own control posture and carries no customer PII (see
 [`COMPLIANCE.md`](COMPLIANCE.md) section A0).
 
 > The same three routes exist on the managed `gcp` stack (Demo B setup), where the posture
 > is read live from Security Command Center + Cloud Asset Inventory + Assured Workloads
-> instead of the canned local posture. **External consumer:** Rsk3 (architecture validator)
+> instead of the canned local posture. **External consumer:** `architecture-validator` (architecture validator)
 > POSTs `/evidence-pack` to this service with the same shape.
 
 ---
@@ -384,7 +384,7 @@ COMPLIANCE_PROFILE=local compliance horizon track --open-only
 - **Every assessment is cited** to the instrument that drove it, exactly like the other two
   families.
 - **Ownership routing is itself consequential.** Any routed change sets
-  `requires_human_review` and goes to the Hrz7 maker-checker console (R8).
+  `requires_human_review` and goes to the `human-review-console` maker-checker console (R8).
 - **The numbers are the bank's.** Show `horizon:` in `config/settings.yaml` and change
   `band_thresholds` or `topic_owners` live: same arithmetic, different verdict, no code
   change (B4).
@@ -408,7 +408,7 @@ COMPLIANCE_PROFILE=local compliance horizon track --open-only
   human-reviewed.
 - **Posture split is intentional.** The mapping module runs without guardrail or DLP by
   design (it reasons over the bank's own control posture, no customer PII); the assistant
-  path keeps its full guardrail + DLP posture. Both feed the one Hrz7 review contract.
+  path keeps its full guardrail + DLP posture. Both feed the one `human-review-console` review contract.
 - **Corpus freshness became compliance work.** The 7-day TTL kept answers current; horizon
   scanning makes the change itself the unit of work. The ledger carries the generation each
   ingest supersedes, so "the regulator republished CPS 230" becomes an assessed, scored,

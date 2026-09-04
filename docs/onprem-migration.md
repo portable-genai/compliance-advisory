@@ -1,7 +1,7 @@
 # On-prem migration: the exit / portability story (P-12)
 
 This document is the concrete answer to a regulator's or CRO's "what is your exit plan?"
-question. Rsk1 is built ports-and-adapters precisely so the managed Google Cloud stack can be
+question. `compliance-advisory` is built ports-and-adapters precisely so the managed Google Cloud stack can be
 swapped for an **on-premise / sovereign** deployment, the migration target is **Google
 Distributed Cloud (GDC)**, with **zero changes to the domain core**.
 
@@ -102,7 +102,7 @@ technology is illustrative; choose your sovereign stack to taste, the domain doe
    port's `onprem:` entry. No change needed unless you add new classes.
 4. **Run the contract + unit suite** under `COMPLIANCE_PROFILE=onprem`: `make test`. Parity
    tests confirm the interfaces; unit tests confirm the pipeline behaviour.
-5. **Re-run the eval gate** (`make eval`) against the on-prem stack to re-establish the Hrz4
+5. **Re-run the eval gate** (`make eval`) against the on-prem stack to re-establish the `model-quality-gate`
    quality bar before promotion (P-08).
 6. **Re-validate the compliance controls** that have on-prem analogues, residency (P-01),
    CMEK-equivalent encryption (P-10), WORM-equivalent audit (P-07), content-free tracing
