@@ -25,13 +25,26 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _EVAL_SCRIPT = _REPO_ROOT / "eval" / "run_eval.py"
 _DATASET = _REPO_ROOT / "eval" / "datasets" / "golden_horizon.jsonl"
 
-#: Metric name -> (scorer, threshold). Mirrors HORIZON_THRESHOLDS in the gate.
-_THRESHOLDS = {
-    "horizon_applicability_accuracy": 0.90,
-    "horizon_materiality_accuracy": 0.80,
-    "horizon_routing_accuracy": 0.90,
-    "horizon_citation_accuracy": 0.95,
-}
+#: The metrics this suite plants a red case for. Names only: the gate's own HORIZON_SCORERS map
+#: supplies the scorer and the rubrics supply the bar, so neither is restated here.
+_SCORERS: tuple[str, ...] = (
+    "horizon_applicability_accuracy",
+    "horizon_materiality_accuracy",
+    "horizon_routing_accuracy",
+    "horizon_citation_accuracy",
+)
+
+
+def _bars(gate: Any) -> dict[str, float]:
+    """The bars the GATE enforces, read from the rubrics it reads.
+
+    This was a literal dict here, held equal to a literal dict in the gate by a test below.
+    Both were stale: the rubric files had said 1.00 for three of these for some time, and the
+    two copies agreed with each other and with nothing that ran. Two homes for a number is a
+    duplication problem; two homes that agree with each other and not with the artifact is a
+    test that certifies the drift.
+    """
+    return {metric: gate.load_thresholds_from_rubrics()[metric] for metric in gate.SCORED_HORIZON}
 
 
 def _load_gate() -> Any:
@@ -104,7 +117,7 @@ _DEGRADATIONS = {
 }
 
 
-@pytest.mark.parametrize("metric", sorted(_THRESHOLDS))
+@pytest.mark.parametrize("metric", sorted(_SCORERS))
 def test_each_horizon_metric_can_go_red(
     metric: str, gate: Any, assessed: list[tuple[Any, Any]]
 ) -> None:
@@ -116,12 +129,16 @@ def test_each_horizon_metric_can_go_red(
         for assessment, example in assessed
     }
     assert cases, "the golden horizon dataset produced no cases"
-    assert_each_can_go_red(scorer, cases, threshold=_THRESHOLDS[metric], metric=metric)
+    assert_each_can_go_red(scorer, cases, threshold=_bars(gate)[metric], metric=metric)
 
 
-def test_gate_thresholds_match_this_suite(gate: Any) -> None:
-    """The bar asserted here must be the bar the gate enforces."""
-    assert gate.HORIZON_THRESHOLDS == _THRESHOLDS
+def test_every_horizon_metric_the_gate_scores_is_falsified_here(gate: Any) -> None:
+    """The set, not the numbers. A metric added to the gate with no red case is the gap."""
+    assert set(gate.SCORED_HORIZON) == set(_SCORERS), (
+        "the gate's horizon metrics and this suite's red cases are not the same set: "
+        f"scored with no proof {sorted(set(gate.SCORED_HORIZON) - set(_SCORERS))}, "
+        f"proved but not scored {sorted(set(_SCORERS) - set(gate.SCORED_HORIZON))}"
+    )
 
 
 def test_a_missing_assessment_scores_zero_on_every_metric(gate: Any, assessed) -> None:

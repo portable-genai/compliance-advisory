@@ -110,25 +110,36 @@ from compliance_advisory.domain.models import (
 # --------------------------------------------------------------------------- #
 # Thresholds — the promotion bar (SPEC A4 / P-08). Mirrors eval/rubrics/*.yaml.
 # --------------------------------------------------------------------------- #
-THRESHOLDS: dict[str, float] = {
-    "groundedness": 0.80,
-    "citation_accuracy": 0.90,
-    "faithfulness": 0.80,
-    "safety": 0.99,
-}
+# The QA metrics this runner scores, in report order. A NAME LIST, not a bar list.
+#
+# This was a dict of thresholds, and the values in it were never read: every bar comes from
+# `load_thresholds_from_rubrics()` and the dict was iterated only for its keys. Two of the
+# three dicts here had drifted from the rubrics that actually gate the run (the mapping and
+# horizon families said 0.80, 0.90 and 0.95 where the rubric files say 1.00), so a reviewer
+# reading this file was reading numbers that had not been the bars for some time. A dead
+# number that reads exactly like a live one is worse than a duplicate.
+SCORED_QA: tuple[str, ...] = (
+    "groundedness",
+    "citation_accuracy",
+    "faithfulness",
+    "safety",
+)
 
 # Control-mapping metrics run in the same gate. Names are prefixed
 # ``mapping_`` so they never collide with the QA-side ``citation_accuracy`` / ``safety`` rows
 # in the shared report table. Mirrors eval/rubrics/mapping_*.yaml.
-MAPPING_THRESHOLDS: dict[str, float] = {
-    "mapping_accuracy": 0.80,
-    "mapping_coverage_correctness": 0.80,
-    "mapping_citation_accuracy": 0.90,
-    "mapping_safety": 0.99,
-}
+# The control-mapping metrics, in report order. Names only; the bars are in
+# eval/rubrics/mapping_*.yaml. Prefixed `mapping_` so they never collide with the QA-side
+# citation_accuracy / safety rows in the shared report table.
+SCORED_MAPPING: tuple[str, ...] = (
+    "mapping_accuracy",
+    "mapping_coverage_correctness",
+    "mapping_citation_accuracy",
+    "mapping_safety",
+)
 
 # The horizon-scanning metrics are folded into this same gate. Their names are prefixed
-# ``horizon_`` so they never collide with the QA or mapping rows, and ``HORIZON_THRESHOLDS``
+# ``horizon_`` so they never collide with the QA or mapping rows, and ``SCORED_HORIZON``
 # is declared beside the horizon harness further down, next to the scorers it governs.
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -876,12 +887,15 @@ def score_mapping_safety(mapping: ControlMapping | None, example: GoldenMapping)
 # are seeded per row, then the real service performs the detection, the deterministic
 # assessment, the routing and the citation assembly.
 # --------------------------------------------------------------------------- #
-HORIZON_THRESHOLDS: dict[str, float] = {
-    "horizon_applicability_accuracy": 0.90,
-    "horizon_materiality_accuracy": 0.80,
-    "horizon_routing_accuracy": 0.90,
-    "horizon_citation_accuracy": 0.95,
-}
+# The horizon-scanning metrics, in report order. Names only; the bars are in
+# eval/rubrics/horizon_materiality_accuracy.yaml. Prefixed `horizon_` so they never collide
+# with the QA or mapping rows.
+SCORED_HORIZON: tuple[str, ...] = (
+    "horizon_applicability_accuracy",
+    "horizon_materiality_accuracy",
+    "horizon_routing_accuracy",
+    "horizon_citation_accuracy",
+)
 
 DEFAULT_HORIZON_DATASET = _REPO_ROOT / "eval" / "datasets" / "golden_horizon.jsonl"
 
@@ -1111,7 +1125,7 @@ def run_horizon_offline(
     if not dataset.exists():
         raise SystemExit(
             f"{dataset}: horizon golden dataset is missing. Four gated metrics "
-            f"({', '.join(HORIZON_THRESHOLDS)}) are scored from it, and a run without them "
+            f"({', '.join(SCORED_HORIZON)}) are scored from it, and a run without them "
             "would report PASS over a subset of the gate."
         )
     examples = load_golden_horizon(dataset)
@@ -1119,12 +1133,12 @@ def run_horizon_offline(
         f"Running horizon-scanning metrics over {len(examples)} golden corpus changes "
         f"(evaluator=HorizonScanService).\n"
     )
-    agg: dict[str, _PerMetric] = {m: _PerMetric() for m in HORIZON_THRESHOLDS}
+    agg: dict[str, _PerMetric] = {m: _PerMetric() for m in SCORED_HORIZON}
     for example in examples:
         assessment = assess_example(_make_horizon_service(example), example)
         for metric, scorer in HORIZON_SCORERS.items():
             agg[metric].scores.append(scorer((assessment, example)))
-    results = [result_factory(metric, agg[metric].mean) for metric in HORIZON_THRESHOLDS]
+    results = [result_factory(metric, agg[metric].mean) for metric in SCORED_HORIZON]
     return results, len(examples), dataset
 
 
@@ -1153,7 +1167,7 @@ def run_offline(dataset: Path, thresholds: dict[str, float]) -> EvalReport:
     _RETRIEVAL_CACHE.clear()
     service = _make_service(adapters)
 
-    agg: dict[str, _PerMetric] = {m: _PerMetric() for m in THRESHOLDS}
+    agg: dict[str, _PerMetric] = {m: _PerMetric() for m in SCORED_QA}
     print(
         f"Running offline eval gate over {len(examples)} golden examples "
         f"(evaluator={'ComplianceQAService' if service else 'inline-pipeline'}).\n"
@@ -1221,7 +1235,7 @@ def run_mapping_offline(
     if not dataset.exists():
         raise SystemExit(
             f"{dataset}: mapping golden dataset is missing. Four gated metrics "
-            f"({', '.join(MAPPING_THRESHOLDS)}) are scored from it, including "
+            f"({', '.join(SCORED_MAPPING)}) are scored from it, including "
             "mapping_safety, and a run without them would report PASS over a subset of the "
             "gate."
         )
@@ -1231,7 +1245,7 @@ def run_mapping_offline(
         f"Running control-mapping metrics over {len(examples)} golden mappings "
         f"(evaluator={'ControlMappingService' if service else 'unavailable'}).\n"
     )
-    agg: dict[str, _PerMetric] = {m: _PerMetric() for m in MAPPING_THRESHOLDS}
+    agg: dict[str, _PerMetric] = {m: _PerMetric() for m in SCORED_MAPPING}
     for example in examples:
         mapping = map_example(service, example)
         agg["mapping_accuracy"].scores.append(score_mapping_accuracy(mapping, example))

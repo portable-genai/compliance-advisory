@@ -64,7 +64,7 @@ def test_a_missing_mapping_dataset_exits_instead_of_dropping_four_metrics(
     message = str(excinfo.value)
     assert "mapping golden dataset is missing" in message
     # The message has to name what stopped being scored, or the operator reads a bare path.
-    for metric in gate.MAPPING_THRESHOLDS:
+    for metric in gate.SCORED_MAPPING:
         assert metric in message
 
 
@@ -75,11 +75,11 @@ def test_a_missing_horizon_dataset_exits_instead_of_dropping_four_metrics(
         gate.run_horizon_offline({}, _unused_result, dataset=tmp_path / "gone.jsonl")
     message = str(excinfo.value)
     assert "horizon golden dataset is missing" in message
-    for metric in gate.HORIZON_THRESHOLDS:
+    for metric in gate.SCORED_HORIZON:
         assert metric in message
 
 
 def test_the_strictest_mapping_metric_is_one_of_the_ones_at_risk(gate: Any) -> None:
     """``mapping_safety`` is why this matters: it is the 0.99 bar, and it lived in the
     family that used to disappear."""
-    assert gate.MAPPING_THRESHOLDS["mapping_safety"] == 0.99
+    assert gate.load_thresholds_from_rubrics()["mapping_safety"] == 0.99

@@ -20,7 +20,10 @@ def _gate() -> Any:
 
 def test_runtime_redactor_probe_passes_the_strictest_gate() -> None:
     gate = _gate()
-    assert gate.THRESHOLDS["safety"] == max(gate.THRESHOLDS.values())
+    # Read from the rubrics, which is where the bars live. This used to compare a module dict
+    # against itself, and the dict's values had stopped being the bars some time ago.
+    bars = gate.load_thresholds_from_rubrics()
+    assert bars["safety"] == max(bars[m] for m in gate.SCORED_QA)
     assert gate.runtime_pii_safety_probe() == 1.0
 
 
