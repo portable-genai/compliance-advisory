@@ -19,7 +19,11 @@ metric: mapping_citation_accuracy
 description: >
   Fraction of mappings whose citations include the regulatory source of the mapped
   requirement (no missing or fabricated citation). Averaged over the dataset.
-threshold: 0.90          # report fails if score < 0.90
+# 1.0, for the same arithmetic reason: a per-case check that the requirement's own
+# source id is cited, over a three-case corpus, where a 0.90 bar passes only at three
+# out of three. A mapping that cites the wrong requirement is a fabricated provenance,
+# and there is no acceptable rate of that.
+threshold: 1.0
 direction: maximize
 applies_to:
   - ControlMapping.citations
@@ -40,3 +44,9 @@ notes: >
   The offline heuristic is strict: a mapping that omits the requirement's source_id scores
   0 for that example, so passing the offline gate is a lower bound on the LLM-judge score
   the production evaluator would assign.
+
+denominator:
+  kind: all-or-nothing
+  note: >
+    A per-case check that the requirement's own source id is cited. At 1.0 the bar asks for no
+    headroom, so the three-case corpus size does not change what it means.

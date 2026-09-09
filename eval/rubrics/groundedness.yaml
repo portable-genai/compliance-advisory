@@ -44,3 +44,7 @@ notes: >
   The offline heuristic is intentionally strict and conservative: it credits a sentence
   only when the answer also carries citations, so passing the offline gate is a lower
   bound on the LLM-judge score the production evaluator would assign.
+
+denominator:
+  kind: rate
+  over: golden QA cases (twelve)

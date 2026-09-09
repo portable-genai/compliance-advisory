@@ -48,6 +48,12 @@ test: ## Run unit + contract tests on the local profile (no GCP SDK required).
 eval: ## Run the A4 eval gate (groundedness / citations / faithfulness / safety).
 	$(PYTHON) eval/run_eval.py
 
+evals-doc: ## Regenerate docs/evals.md from the rubrics and the three golden sets.
+	$(PYTHON) scripts/render_evals_doc.py
+
+evals-doc-check: ## Fail when docs/evals.md and the artifacts it describes disagree.
+	$(PYTHON) scripts/render_evals_doc.py --check
+
 portability: ## Execute the bounded offline/profile portability proof.
 	PYTHONPATH=src $(PYTHON) scripts/portability_demo.py
 
@@ -57,7 +63,7 @@ plugin: ## Render the Agent Plugins 1.0.0 directory from this repo's own declara
 mcp-serve: ## Serve the governed tool catalog over MCP 2026-07-28 (stdio; needs the [gcp] extra).
 	python -m compliance_advisory.mcp
 
-check: lint test eval portability demo-selftest tf-validate plugin ## Run the full offline quality gate.
+check: lint test eval evals-doc-check portability demo-selftest tf-validate plugin ## Run the full offline quality gate.
 
 ui-install: ## Install the console's locked dependencies (proves package-lock.json is valid).
 	npm ci --prefix $(UI_DIR)
