@@ -41,19 +41,38 @@ scoring:
 # of every row.
 companion_metrics:
   horizon_applicability_accuracy:
-    threshold: 0.90
+    # 1.0. A per-case equality check on a deterministic applicability verdict over a
+    # six-case corpus: a 0.90 bar passes only at six out of six, because five of six is
+    # 0.833. Already 1.0; only the label said otherwise.
+    threshold: 1.0
     description: >
       The applicability verdict (applicable | conditional | not_applicable) matches the
       golden expectation. A change wrongly dismissed as out of scope never reaches an owner,
       so this bar is higher than the band bar.
   horizon_routing_accuracy:
-    threshold: 0.90
+    # 1.0, same arithmetic. Routing to the wrong accountable owner is a change that
+    # reached nobody, and there is no acceptable rate of that either.
+    threshold: 1.0
     description: >
       The change is routed to the accountable owner the golden set expects. Routing is
       deterministic (topic rule, then regulator rule, then the configured default), so a
       miss means the routing table and the bank's operating model have drifted apart.
   horizon_citation_accuracy:
-    threshold: 0.95
+    # 1.0. A 0.95 bar over six cases passes only at six out of six.
+    threshold: 1.0
     description: >
       Every assessment cites the corpus item that drove it. An uncited materiality call
       cannot be defended to a regulator, so a single missing citation is close to fatal.
+
+denominator:
+  horizon_materiality_accuracy:
+    # A per-case band equality over six golden changes. 0.80 needs five, so it is the one bar in
+    # this family the corpus can express; the other three are per-case equality at 1.0.
+    kind: rate
+    over: golden horizon changes (six)
+  horizon_applicability_accuracy:
+    kind: all-or-nothing
+  horizon_routing_accuracy:
+    kind: all-or-nothing
+  horizon_citation_accuracy:
+    kind: all-or-nothing

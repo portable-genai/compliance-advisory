@@ -57,10 +57,9 @@ these under config should lift them into settings as an explicit adoption step.
 
 ### Does the CI run for my fork out of the box?
 
-Yes. CI (`ci.yaml`, `COMPLIANCE_PROFILE=local`) runs ruff check + ruff format --check + mypy
-+ pytest, and the eval gate (`eval-gate.yaml`, `COMPLIANCE_PROFILE=onprem`) runs
-`eval/run_eval.py`, both with **no cloud credentials and no org secrets**, so a fork's build
-is green immediately. You add secrets only when you wire the `gcp` / `platform` profiles. The
+Yes. CI (`gate.yaml`, `COMPLIANCE_PROFILE=local`) runs `make check`: ruff check + ruff
+format --check + mypy + pytest, plus `eval/run_eval.py` and the generated-page check, all with
+**no cloud credentials and no org secrets**, so a fork's build is green immediately. You add secrets only when you wire the `gcp` / `platform` profiles. The
 eval gate measures the *reference* corpus until you rebuild the golden set; that is an
 explicit adoption step, not a silent pass.
 

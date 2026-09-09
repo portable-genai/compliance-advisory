@@ -66,7 +66,12 @@ from types import SimpleNamespace
 # The --mode smoke|gate scaffold + aligned report rendering come from the shared
 # agent-eval-kit commons; this script keeps only its own offline
 # evaluator and gate runner.
-from agent_eval_kit import eval_main
+from agent_eval_kit import (
+    assert_denominator_supports,
+    dataset_digest,
+    eval_main,
+    load_rubrics,
+)
 
 # Control-mapping domain types (merged from C2). Imported via the merged
 # ``compliance_advisory.*`` path — never ``control_mapping.*`` — so the one gate scores both
@@ -127,6 +132,7 @@ MAPPING_THRESHOLDS: dict[str, float] = {
 # is declared beside the horizon harness further down, next to the scorers it governs.
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
+RUBRICS = _REPO_ROOT / "eval" / "rubrics"
 DEFAULT_DATASET = _REPO_ROOT / "eval" / "datasets" / "golden_qa.jsonl"
 DEFAULT_MAPPING_DATASET = _REPO_ROOT / "eval" / "datasets" / "golden_mappings.jsonl"
 
@@ -173,36 +179,55 @@ def load_golden(path: Path) -> list[GoldenExample]:
 
 
 def load_thresholds_from_rubrics() -> dict[str, float]:
-    """Read thresholds from ``eval/rubrics/*.yaml`` when PyYAML is available.
+    """Read every metric's reviewed bar out of ``eval/rubrics/*.yaml``. No fallback, by design.
 
-    Falls back to the in-code ``THRESHOLDS`` so the gate still runs if PyYAML is missing.
-    The YAML rubrics are the human-facing source of truth; this keeps code and docs aligned.
+    Fails closed on a missing directory, a non-numeric bar, or the same metric given two
+    different bars in two files. There is deliberately no fallback to the module dicts above:
+    a fallback is a second home for a number that must have one, and it is reached exactly when
+    the reviewed file could not be read, which is the worst moment to stop using it. PyYAML is a
+    hard dependency of this service, so there is no case to fall back for.
     """
-    thresholds = {**THRESHOLDS, **MAPPING_THRESHOLDS, **HORIZON_THRESHOLDS}
-    try:
-        import yaml  # type: ignore[import-untyped]
-    except ImportError:
-        return thresholds
+    return load_rubrics(RUBRICS).thresholds()
 
-    rubric_dir = _REPO_ROOT / "eval" / "rubrics"
-    for name in (
-        "groundedness.yaml",
-        "citation_accuracy.yaml",
-        "mapping_accuracy.yaml",
-        "mapping_citation_accuracy.yaml",
-        "horizon_materiality_accuracy.yaml",
-    ):
-        rubric_path = rubric_dir / name
-        if not rubric_path.exists():
-            continue
-        doc = yaml.safe_load(rubric_path.read_text(encoding="utf-8")) or {}
-        metric = doc.get("metric")
-        if isinstance(metric, str) and "threshold" in doc:
-            thresholds[metric] = float(doc["threshold"])
-        for companion, spec in (doc.get("companion_metrics") or {}).items():
-            if isinstance(spec, dict) and "threshold" in spec:
-                thresholds[str(companion)] = float(spec["threshold"])
-    return thresholds
+
+#: The metrics this runner scores, across all three families. Named so `assert_covers` can
+#: compare them with the rubric set in BOTH directions: a metric with no reviewed bar got its
+#: threshold from a call site, and a bar that names no metric reads as governance while gating
+#: nothing.
+SCORED: tuple[str, ...] = (
+    # QA
+    "groundedness",
+    "citation_accuracy",
+    "faithfulness",
+    "safety",
+    # control mapping
+    "mapping_accuracy",
+    "mapping_coverage_correctness",
+    "mapping_citation_accuracy",
+    "mapping_safety",
+    # horizon scanning
+    "horizon_applicability_accuracy",
+    "horizon_materiality_accuracy",
+    "horizon_routing_accuracy",
+    "horizon_citation_accuracy",
+)
+
+#: What each RATE metric's score is a fraction OF, and the count the corpus supplies. The
+#: aggregate example count is the wrong denominator for most of these: `mapping_accuracy` is a
+#: precision-and-recall mean over expected control FAMILIES, of which three golden mappings
+#: carry five, which is exactly what its 0.80 bar needs. A metric absent from this map is
+#: declared `all-or-nothing` in its rubric: its bar asks for no headroom, so a bigger corpus
+#: would not change what it means. Four bars in this repository claimed a rate the corpus could
+#: not express and were arithmetically identical to 1.0; they now say 1.0.
+RATE_DENOMINATORS: dict[str, Callable[[], int]] = {
+    "groundedness": lambda: len(load_golden(DEFAULT_DATASET)),
+    "citation_accuracy": lambda: len(load_golden(DEFAULT_DATASET)),
+    "faithfulness": lambda: len(load_golden(DEFAULT_DATASET)),
+    "mapping_accuracy": lambda: sum(
+        len(example.expected_families) for example in load_golden_mappings(DEFAULT_MAPPING_DATASET)
+    ),
+    "horizon_materiality_accuracy": lambda: len(load_golden_horizon(DEFAULT_HORIZON_DATASET)),
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -1117,6 +1142,11 @@ class _PerMetric:
 
 def run_offline(dataset: Path, thresholds: dict[str, float]) -> EvalReport:
     global _RETRIEVAL_ADAPTER
+    # The rubrics and the scored set must agree in BOTH directions before anything is scored.
+    load_rubrics(RUBRICS).assert_covers(SCORED)
+    # And the corpus must be able to express every bar that claims a rate.
+    for metric, denominator in RATE_DENOMINATORS.items():
+        assert_denominator_supports(thresholds[metric], denominator(), metric=metric)
     examples = load_golden(dataset)
     adapters = _build_adapters(examples)
     _RETRIEVAL_ADAPTER = adapters.retrieval
@@ -1141,8 +1171,7 @@ def run_offline(dataset: Path, thresholds: dict[str, float]) -> EvalReport:
 
     def _result(metric: str, mean: float) -> EvalMetricResult:
         score = round(mean, 4)
-        default = {**THRESHOLDS, **MAPPING_THRESHOLDS, **HORIZON_THRESHOLDS}[metric]
-        threshold = thresholds.get(metric, default)
+        threshold = thresholds[metric]
         return EvalMetricResult(
             metric=metric, score=score, threshold=threshold, passed=score >= threshold
         )
@@ -1166,6 +1195,12 @@ def run_offline(dataset: Path, thresholds: dict[str, float]) -> EvalReport:
         dataset=" + ".join(labels),
         results=results,
         n_examples=len(examples) + n_mappings + n_horizon,
+        # The corpora a number was computed over, so "which golden sets produced this" is
+        # answerable after the fact rather than inferred from three filenames.
+        dataset_digest="+".join(
+            dataset_digest(path) for path in (dataset, mapping_dataset, horizon_dataset)
+        ),
+        evaluator="offline heuristic (no GCP creds)",
     )
 
 
