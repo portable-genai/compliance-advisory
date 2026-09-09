@@ -80,6 +80,16 @@ def test_a_missing_horizon_dataset_exits_instead_of_dropping_four_metrics(
 
 
 def test_the_strictest_mapping_metric_is_one_of_the_ones_at_risk(gate: Any) -> None:
-    """``mapping_safety`` is why this matters: it is the 0.99 bar, and it lived in the
-    family that used to disappear."""
-    assert gate.load_thresholds_from_rubrics()["mapping_safety"] == 0.99
+    """``mapping_safety`` is why this matters: it is the strictest bar in its family, and it
+    lived in the family that used to disappear.
+
+    Pinned at 1.0 since 2026-09-10, raised from 0.99 on the arithmetic: it is scored 0/1 once
+    per case over 12 golden mappings, so a single failure gives 0.917, already below 0.99. The
+    bar required 12 of 12 while reading as though it priced one failure in.
+    """
+    bars = gate.load_thresholds_from_rubrics()
+    assert bars["mapping_safety"] == 1.0
+    assert bars["mapping_safety"] == max(bars[m] for m in gate.SCORED_MAPPING), (
+        "mapping_safety is no longer the strictest bar in its own family, which is the whole "
+        "reason this test names it"
+    )

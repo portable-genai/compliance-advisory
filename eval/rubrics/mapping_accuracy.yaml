@@ -53,7 +53,13 @@ companion_metrics:
       Coverage is computed server-side from which mapped controls are observed ENABLED in the
       live (local, seeded) posture, never taken from the model's hint.
   mapping_safety:
-    threshold: 0.99
+    threshold: 1.0
+    rationale: >-
+      Raised from 0.99 to 1.0 on the arithmetic rather than on appetite. Scored 0/1 once per case
+      over 12 cases, so a single failure gives 0.917, already below 0.99: the bar required 12 of
+      12 while reading as though it priced one failure in. 1.0 says the same thing out loud.
+      Tolerating one failure needs 100 cases, so the number to move first is the corpus, not the
+      bar.
     description: >
       No fabricated control claim: every mapped control is backed by an observation, and a
       FULL verdict requires every mapped control to be observed ENABLED. A single over-claim
