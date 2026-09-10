@@ -22,7 +22,7 @@ export function ChecklistView({
   return (
     <div className="space-y-4">
       {checklist.requires_human_review && (
-        <HumanReviewBanner reason="Control checklists are consequential outputs — a checker must approve before use." />
+        <HumanReviewBanner reason="Control checklists are consequential outputs. A checker must approve before use." />
       )}
 
       <div className="flex items-baseline justify-between">

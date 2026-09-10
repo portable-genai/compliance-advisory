@@ -13,7 +13,7 @@ const STATUS_STYLES: Record<FreshnessStatus, string> = {
 
 function relExpiry(iso: string): { label: string; stale: boolean } {
   const t = Date.parse(iso);
-  if (Number.isNaN(t)) return { label: "—", stale: false };
+  if (Number.isNaN(t)) return { label: "unknown", stale: false };
   const deltaMs = t - Date.now();
   const stale = deltaMs <= 0;
   const days = Math.round(Math.abs(deltaMs) / 86_400_000);
@@ -150,7 +150,7 @@ export function CorpusStatus() {
                         </div>
                       </td>
                       <td className="px-2 py-1.5 font-mono text-ink-500">
-                        {r.version || "—"}
+                        {r.version || "n/a"}
                       </td>
                       <td
                         className={`px-3 py-1.5 text-right tabular-nums ${
