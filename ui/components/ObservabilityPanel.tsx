@@ -58,8 +58,8 @@ export function ObservabilityPanel({
         {obs.eval && <EvalBlock report={obs.eval} />}
 
         {/* Guardrail verdicts */}
-        <GuardrailBlock label="Guardrail — input" verdict={obs.guardrail_input} />
-        <GuardrailBlock label="Guardrail — output" verdict={obs.guardrail_output} />
+        <GuardrailBlock label="Input guardrail" verdict={obs.guardrail_input} />
+        <GuardrailBlock label="Output guardrail" verdict={obs.guardrail_output} />
 
         {/* Redactions */}
         {obs.redactions && obs.redactions.length > 0 && (
@@ -107,7 +107,7 @@ function DecisionPill({
   decision?: "allowed" | "blocked" | "escalated";
 }) {
   if (!decision) {
-    return <span className="text-xs text-ink-400">—</span>;
+    return <span className="text-xs text-ink-400">n/a</span>;
   }
   const styles: Record<string, string> = {
     allowed: "bg-emerald-50 text-emerald-700 ring-emerald-200",

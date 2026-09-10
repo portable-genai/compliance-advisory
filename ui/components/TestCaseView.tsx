@@ -20,7 +20,7 @@ export function TestCaseView({ testcases }: { testcases: TestCase[] | null }) {
 
   return (
     <div className="space-y-4">
-      <HumanReviewBanner reason="Test cases are consequential, automatable artifacts — a checker must approve before they are wired into a control-assurance pipeline." />
+      <HumanReviewBanner reason="Test cases are consequential, automatable artifacts. A checker must approve before they are wired into a control-assurance pipeline." />
 
       <div className="flex items-baseline justify-between">
         <div className="text-xs font-semibold uppercase tracking-wide text-ink-500">

@@ -20,13 +20,13 @@ const MODES: { key: ArtifactKind; label: string; verb: string; placeholder: stri
       label: "Ask",
       verb: "Ask",
       placeholder:
-        "Ask a grounded compliance question — e.g. “MAS expectations for material cloud outsourcing to a hyperscaler”",
+        "Ask a grounded compliance question, e.g. “MAS expectations for material cloud outsourcing to a hyperscaler”",
     },
     {
       key: "checklist",
       label: "Checklist",
       verb: "Build checklist",
-      placeholder: "Describe a use case — e.g. “GenAI chatbot for retail customers on public cloud”",
+      placeholder: "Describe a use case, e.g. “GenAI chatbot for retail customers on public cloud”",
     },
     {
       key: "testcases",
@@ -38,7 +38,7 @@ const MODES: { key: ArtifactKind; label: string; verb: string; placeholder: stri
       key: "regulator_questions",
       label: "Regulator Qs",
       verb: "Anticipate questions",
-      placeholder: "Describe a use case — surface the questions a regulator / CRO will ask",
+      placeholder: "Describe a use case to surface the questions a regulator / CRO will ask",
     },
     {
       key: "control_mapping",

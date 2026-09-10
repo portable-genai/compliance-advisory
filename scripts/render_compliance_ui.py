@@ -163,7 +163,7 @@ def tabs_bar(cur: str) -> str:
 
 def review_banner() -> str:
     return (
-        '<div class="review" data-review-banner="1">HUMAN REVIEW REQUIRED — maker-checker gate (P-06). '
+        '<div class="review" data-review-banner="1">HUMAN REVIEW REQUIRED: maker-checker gate (P-06). '
         "The assistant proposes; a qualified checker disposes before any reliance.</div>"
     )
 
@@ -176,7 +176,7 @@ def header(data: dict, cur: str, *, review: bool) -> str:
         f" data-region='{esc(data['region'])}'"
         f" data-regulator-filter='{esc(data['regulator_filter'])}'"
         f" data-review-required='{str(bool(review)).lower()}'>"
-        f"<h1>C1 Compliance Assistant — {esc(REG_LABEL.get(data['regulator_filter'], data['regulator_filter']))}</h1>"
+        f"<h1>C1 Compliance Assistant: {esc(REG_LABEL.get(data['regulator_filter'], data['regulator_filter']))}</h1>"
         f"<p class='sub'>Use case <b>{esc(data['use_case'])}</b> · profile "
         f"<b class='mono'>{esc(data['profile'])}</b> · region <b>{esc(data['region'])}</b></p>"
         + tabs_bar(cur)
@@ -212,12 +212,12 @@ def render_answer(data: dict) -> str:
         + "</div></section>"
         + '<section class="panel" data-panel="citations"'
         + f' data-panel-citations="{len(a.get("citations", []))}">'
-        + "<h2>Citations — page-level provenance</h2>"
+        + "<h2>Citations: page-level provenance</h2>"
         + f"<div class='body'>{cites_block(a.get('citations', []))}</div></section>"
         + "<p class='foot'>Audit-first compliance console · synthetic fictional corpus · "
         + "deterministic grounded RAG (local profile)</p>"
     )
-    return page("C1 — Answer", body)
+    return page("C1: Answer", body)
 
 
 def _render_items(
@@ -247,7 +247,7 @@ def _render_items(
         + "<p class='foot'>Audit-first compliance console · synthetic fictional corpus · "
         + "every control / test / answer cited to a regulator source and page</p>"
     )
-    return page(f"C1 — {title}", body)
+    return page(f"C1: {title}", body)
 
 
 def render_checklist(data: dict) -> str:
@@ -342,16 +342,16 @@ def render_audit(data: dict) -> str:
             f"<td class='mono'>{esc(ev.get('action'))}</td>"
             f"<td><span class='statuspill' style='background:{bg};color:{fg}'>{esc(dec)}</span></td>"
             f"<td>{esc(ev.get('actor'))}</td>"
-            f"<td class='mono'>{esc(meta.get('confidence', '—'))}</td>"
+            f"<td class='mono'>{esc(meta.get('confidence', 'n/a'))}</td>"
             f"<td class='mono'>{esc(meta.get('n_citations', len(ev.get('citations', []))))}</td>"
-            f"<td>{esc(meta.get('requires_human_review', '—'))}</td>"
+            f"<td>{esc(meta.get('requires_human_review', 'n/a'))}</td>"
             "</tr>"
         )
     body = (
         header(data, "audit", review=False)
         + '<section class="panel" data-panel="audit-trail"'
         + f' data-audit-count="{len(data.get("audit_trail", []))}">'
-        + "<h2>WORM audit trail — every interaction, PII-redacted</h2>"
+        + "<h2>WORM audit trail: every interaction, PII-redacted</h2>"
         + "<div class='body'><table class='tl'>"
         + "<tr><th>Action</th><th>Decision</th><th>Actor</th><th>Confidence</th>"
         + "<th>Citations</th><th>Human review</th></tr>"
@@ -362,7 +362,7 @@ def render_audit(data: dict) -> str:
         + "</div></section>"
         + "<p class='foot'>Audit-first compliance console · synthetic fictional corpus</p>"
     )
-    return page("C1 — Audit trail", body)
+    return page("C1: Audit trail", body)
 
 
 RENDERERS = {

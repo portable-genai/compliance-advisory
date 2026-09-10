@@ -29,31 +29,31 @@ import render_compliance_ui as r  # sibling script: reuse the exact audit-first 
 STEPS = [
     {
         "key": "answer",
-        "label": "Answer — grounded, page-cited reply to the compliance question",
+        "label": "Answer: grounded, page-cited reply to the compliance question",
         "next": "Reveal the control checklist this use case requires",
         "render": "answer.html",
     },
     {
         "key": "checklist",
-        "label": "Control checklist — controls with cited rationale",
+        "label": "Control checklist: controls with cited rationale",
         "next": "Reveal the test cases that verify each control",
         "render": "checklist.html",
     },
     {
         "key": "testcases",
-        "label": "Test cases — automated checks per control",
+        "label": "Test cases: automated checks per control",
         "next": "Reveal the regulator / CRO questions, answered and cited",
         "render": "testcases.html",
     },
     {
         "key": "regulator_questions",
-        "label": "Regulator questions — anticipated and answered",
+        "label": "Regulator questions: anticipated and answered",
         "next": "Show the WORM audit trail recorded for this run",
         "render": "regulator-questions.html",
     },
     {
         "key": "audit",
-        "label": "WORM audit trail — every interaction, PII-redacted",
+        "label": "WORM audit trail: every interaction, PII-redacted",
         "next": None,
         "render": "audit.html",
     },
@@ -114,7 +114,8 @@ class DemoSession:
             f" data-step='{self.idx}' data-step-count='{len(STEPS)}'"
             f" data-step-key='{r.esc(step['key'])}'"
             f" data-at-end='{str(self.at_end).lower()}'>"
-            f"<span class='lbl'>Step {self.idx + 1}/{len(STEPS)} — <b>{r.esc(step['label'])}</b></span>"
+            f"<span class='lbl'>Step {self.idx + 1}/{len(STEPS)}</span>"
+            f"<span class='lbl'><b>{r.esc(step['label'])}</b></span>"
             f"<span class='spacer'></span>{next_btn}"
             "<form method='post' action='/restart'><button class='restart' type='submit'>Restart</button></form>"
             "</div>"
