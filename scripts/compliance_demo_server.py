@@ -62,7 +62,7 @@ STEPS = [
 _CONTROL_CSS = """
 .democtl{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;
   margin:-24px -18px 16px;padding:12px 18px;background:#0b101a;color:#fff}
-.democtl .lbl{font-size:13px}.democtl .lbl b{color:#90b2ff}.democtl .step{white-space:nowrap}
+.democtl .lbl{font-size:13px}.democtl .lbl b{color:#90b2ff}.democtl .count{white-space:nowrap}
 .democtl .spacer{flex:1}
 .democtl form{margin:0}
 .democtl button{font:inherit;font-size:13px;font-weight:600;border:0;border-radius:7px;
@@ -114,7 +114,7 @@ class DemoSession:
             f" data-step='{self.idx}' data-step-count='{len(STEPS)}'"
             f" data-step-key='{r.esc(step['key'])}'"
             f" data-at-end='{str(self.at_end).lower()}'>"
-            f"<span class='lbl step'>Step {self.idx + 1}/{len(STEPS)}</span>"
+            f"<span class='lbl count'>Step {self.idx + 1}/{len(STEPS)}</span>"
             f"<span class='lbl'><b>{r.esc(step['label'])}</b></span>"
             f"<span class='spacer'></span>{next_btn}"
             "<form method='post' action='/restart'><button class='restart' type='submit'>Restart</button></form>"
