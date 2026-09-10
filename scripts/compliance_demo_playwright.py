@@ -7,10 +7,10 @@ action (click "Next ▶") and highlights the panel to look at. You stay in contr
 
 Usage (two terminals)::
 
-    # terminal 1 — the live demo server
+    # terminal 1: the live demo server
     PYTHONPATH=src:tests python scripts/compliance_demo_server.py
 
-    # terminal 2 — the guided walkthrough (a real Chrome window opens)
+    # terminal 2: the guided walkthrough (a real Chrome window opens)
     pip install playwright && playwright install chromium     # one-time
     python scripts/compliance_demo_playwright.py
 
@@ -21,7 +21,7 @@ to the demo server, so against the live console use it as a guided narration ove
 Environment overrides:
     DEMO_URL    server base URL (default http://127.0.0.1:8088)
     HEADLESS=1  run headless (used for the self-test; no window)
-    DEMO_AUTO=1 don't wait for Enter — advance automatically (self-test / recording)
+    DEMO_AUTO=1 don't wait for Enter, advance automatically (self-test / recording)
     SLOWMO_MS   per-action slow-motion in ms (default 250 headed, 0 headless)
     CHROME_PATH explicit Chromium/Chrome binary (else Playwright's own)
 """
@@ -52,26 +52,26 @@ STEPS = [
     ),
     (
         "Control checklist. From the same use case the assistant derives the controls it "
-        "requires — each with a severity, cited rationale, and regulator + page citation "
+        "requires, each with a severity, cited rationale, and regulator + page citation "
         "chips. Always gated for a second reviewer.",
         True,
         ".panel",
     ),
     (
-        "Test cases. Each control gets an automated verification test — steps, expected "
-        "result, and an executable check — again cited to the source page.",
+        "Test cases. Each control gets an automated verification test (steps, expected "
+        "result, and an executable check), again cited to the source page.",
         True,
         ".item",
     ),
     (
         "Regulator questions. The questions a regulator / CRO will ask, each with why it "
-        "is asked and a cited model answer — so the team can rehearse the exam.",
+        "is asked and a cited model answer, so the team can rehearse the exam.",
         True,
         ".item",
     ),
     (
-        "WORM audit trail. Every interaction in the run — ask / checklist / testcases / "
-        "regulator-questions — is written PII-redacted to the append-only audit store, "
+        "WORM audit trail. Every interaction in the run (ask / checklist / testcases / "
+        "regulator-questions) is written PII-redacted to the append-only audit store, "
         "with its decision, confidence and citation count.",
         True,
         ".tl",
@@ -121,7 +121,7 @@ def main() -> int:
         browser = p.chromium.launch(headless=HEADLESS, slow_mo=SLOWMO, executable_path=CHROME_PATH)
         page = browser.new_context(viewport={"width": 1100, "height": 900}).new_page()
 
-        print("\n=== C1 compliance live demo — press Enter to advance each step ===\n")
+        print("\n=== C1 compliance live demo: press Enter to advance each step ===\n")
         page.goto(BASE + "/restart", wait_until="load")  # always start clean
         page.goto(BASE + "/", wait_until="load")
 
