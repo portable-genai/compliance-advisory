@@ -1,7 +1,8 @@
-# outputs.tf — Values the app/operators need to wire settings.yaml after apply.
+# outputs.tf: the values the app and the embedding host need after apply.
 #
-# These map 1:1 onto config/settings.yaml / config.py fields so a deploy is just
-# "apply, then export these into the runtime environment".
+# Each maps onto a config/settings.yaml field or a COMPLIANCE_* variable, so a deploy is
+# "apply, then pass these into the runtime environment". An output for a resource a toggle did
+# not create is null rather than absent, so a consumer can tell "declined" from "forgotten".
 
 output "project_id" {
   description = "The deployment project id."
@@ -9,7 +10,7 @@ output "project_id" {
 }
 
 output "region" {
-  description = "Pinned region (asia-southeast1, Singapore)."
+  description = "The deploy region (settings.yaml region)."
   value       = var.region
 }
 
@@ -25,8 +26,14 @@ output "search_engine_id" {
 }
 
 output "agent_search_location" {
-  description = "Confirms Agent Search residency — must be asia-southeast1 (fail-fast)."
+  description = "Where the data store lives: global, us or eu. Pass as COMPLIANCE_AGENT_SEARCH_LOCATION."
   value       = google_discovery_engine_data_store.reg_kb.location
+}
+
+# ------------------------------- Firestore ---------------------------------- #
+output "firestore_database" {
+  description = "The Firestore database holding the ledger and tracker. The adapters derive the same name from the region, so nothing needs to pass it."
+  value       = google_firestore_database.compliance.name
 }
 
 # --------------------------------- KMS -------------------------------------- #
@@ -37,35 +44,40 @@ output "kms_key" {
 
 # --------------------------------- AlloyDB ---------------------------------- #
 output "alloydb_instance_uri" {
-  description = "AlloyDB primary instance URI (settings.yaml alloydb.instance_uri)."
-  value       = google_alloydb_instance.primary.name
+  description = "AlloyDB primary instance URI (COMPLIANCE_ALLOYDB_URI, platform profile); null unless enable_alloydb."
+  value       = one(google_alloydb_instance.primary[*].name)
 }
 
 output "alloydb_cluster" {
-  description = "AlloyDB cluster resource name."
-  value       = google_alloydb_cluster.freshness.name
+  description = "AlloyDB cluster resource name; null unless enable_alloydb."
+  value       = one(google_alloydb_cluster.freshness[*].name)
 }
 
-# ------------------------- Control posture (the cloud control-mapping toolkit merge) --------------------- #
+# ------------------------------ Control posture ----------------------------- #
 output "scc_parent" {
-  description = "SCC parent the app reads findings from (settings.yaml COMPLIANCE_SCC_PARENT)."
-  value       = var.org_id != "" ? "organizations/${var.org_id}" : ""
+  description = "SCC parent the posture adapter reads findings from (COMPLIANCE_SCC_PARENT)."
+  value       = "organizations/${var.org_id}"
 }
 
 output "asset_feed_topic" {
-  description = "Pub/Sub topic the Cloud Asset feed publishes posture changes to."
-  value       = google_pubsub_topic.asset_feed.id
+  description = "Pub/Sub topic the Cloud Asset feed publishes to; null unless enable_posture_feed."
+  value       = one(google_pubsub_topic.asset_feed[*].id)
 }
 
 output "assured_workload" {
-  description = "Assured Workloads resource the app observes (settings.yaml COMPLIANCE_ASSURED_WORKLOAD)."
-  value       = google_assured_workloads_workload.sg.name
+  description = "Assured Workloads resource the posture adapter observes (COMPLIANCE_ASSURED_WORKLOAD); null unless enable_assured_workloads."
+  value       = one(google_assured_workloads_workload.sg[*].name)
 }
 
-# ------------------------------- WORM logging ------------------------------- #
+# -------------------------------- Audit logging ----------------------------- #
 output "log_bucket" {
-  description = "Locked WORM audit log bucket id (settings.yaml logging.bucket)."
+  description = "Audit log bucket id (settings.yaml logging.bucket)."
   value       = google_logging_project_bucket_config.worm_audit.id
+}
+
+output "log_bucket_locked" {
+  description = "Whether the audit bucket is locked. true is irreversible."
+  value       = google_logging_project_bucket_config.worm_audit.locked
 }
 
 output "audit_sink_writer_identity" {
@@ -80,12 +92,12 @@ output "model_armor_template" {
 }
 
 output "dlp_inspect_template" {
-  description = "DLP inspect template (settings.yaml dlp.inspect_template)."
+  description = "DLP inspect template (COMPLIANCE_DLP_INSPECT_TEMPLATE)."
   value       = google_data_loss_prevention_inspect_template.compliance.id
 }
 
 output "dlp_deidentify_template" {
-  description = "DLP deidentify template (settings.yaml dlp.deidentify_template)."
+  description = "DLP deidentify template (COMPLIANCE_DLP_DEIDENTIFY_TEMPLATE)."
   value       = google_data_loss_prevention_deidentify_template.compliance.id
 }
 
@@ -105,7 +117,7 @@ output "agent_runtime_service_account" {
   value       = google_service_account.agent_runtime.email
 }
 
-output "scheduler_service_account" {
-  description = "Corpus freshness scheduler service account email."
-  value       = google_service_account.scheduler.email
+output "corpus_refresh_job" {
+  description = "The scheduled corpus refresh Cloud Run job; null unless corpus_refresh_image is set."
+  value       = one(google_cloud_run_v2_job.freshness_refresh[*].name)
 }

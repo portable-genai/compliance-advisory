@@ -53,7 +53,7 @@ app = typer.Typer(
 corpus_app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
-    help="Manage the 7-day fetch-at-runtime regulatory corpus (Agent Search + AlloyDB ledger).",
+    help="Manage the 7-day fetch-at-runtime regulatory corpus (Agent Search + freshness ledger).",
 )
 app.add_typer(corpus_app, name="corpus")
 

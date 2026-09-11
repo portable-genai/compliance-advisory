@@ -1,35 +1,31 @@
-# scc_asset_feed.tf — Live control-posture sources: SCC + Cloud Asset Inventory feed.
+# scc_asset_feed.tf: Cloud Asset Inventory project feed for the live control posture.
 #
-# Merged in from the the cloud control-mapping toolkit control-mapping module. The compliance assistant reads the
-# live control posture (not a point-in-time snapshot): Security Command Center supplies
-# findings (the ENABLED / MISCONFIGURED signal) and a Cloud Asset Inventory feed streams
-# the realised configuration of org-policy constraints and resources so the merged
-# service always maps against current state.
+# Security Command Center supplies findings (the ENABLED / MISCONFIGURED signal) and is read
+# directly by SccControlInventoryAdapter. This feed streams the realised configuration of the
+# posture-relevant resources to a regional Pub/Sub topic.
+#
+# Counted on var.enable_posture_feed. The feed covers the whole PROJECT, so in a shared project
+# it streams every sibling's policies, keys, perimeters and buckets too, and nothing in this
+# service subscribes to the topic today; a shared-project deployment may decline it.
 #
 # General Principle map:
 #   P-09 (defence in depth / continuous assurance): continuous posture, not a snapshot.
-#   P-03 (residency): the feed's Pub/Sub topic is regional (asia-southeast1).
-#
-# Security Command Center is enabled at the organization level out of band (it cannot be
-# fully provisioned per-project here); this file wires the project-scoped asset feed the
-# ControlInventory adapter consumes and documents the SCC parent the app reads.
+#   P-03 (residency): the topic persists messages in var.region only.
 
-# Regional Pub/Sub topic the Cloud Asset feed publishes change events to.
 resource "google_pubsub_topic" "asset_feed" {
+  count   = var.enable_posture_feed ? 1 : 0
   name    = "compliance-asset-feed"
   project = var.project_id
 
   message_storage_policy {
-    allowed_persistence_regions = [var.region] # Singapore-only persistence (P-03)
+    allowed_persistence_regions = [var.region]
   }
 
   depends_on = [google_project_service.required]
 }
 
-# Stream org-policy + sovereignty-relevant resource changes to the topic. The
-# SccControlInventoryAdapter reads SCC findings directly; this feed keeps the realised
-# config (locations policy, KMS bindings, perimeter) continuously fresh.
 resource "google_cloud_asset_project_feed" "posture" {
+  count        = var.enable_posture_feed ? 1 : 0
   project      = var.project_id
   feed_id      = "compliance-posture"
   content_type = "RESOURCE"
@@ -44,7 +40,7 @@ resource "google_cloud_asset_project_feed" "posture" {
 
   feed_output_config {
     pubsub_destination {
-      topic = google_pubsub_topic.asset_feed.id
+      topic = google_pubsub_topic.asset_feed[0].id
     }
   }
 

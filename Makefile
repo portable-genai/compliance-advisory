@@ -21,7 +21,7 @@ export COMPLIANCE_PROFILE := $(PROFILE)
 DEMO_PORT   ?= 8122
 
 .DEFAULT_GOAL := help
-.PHONY: help install install-gcp fmt lint test eval check ui-install ui-check smoke-local run-api run-ui tf-validate tf-plan clean demo demo-selftest demo-server
+.PHONY: help install install-gcp fmt lint test eval check ui-install ui-check smoke-local run-api run-ui tf-validate tf-test tf-plan clean demo demo-selftest demo-server
 
 help: ## Show this help.
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -63,7 +63,7 @@ plugin: ## Render the Agent Plugins 1.0.0 directory from this repo's own declara
 mcp-serve: ## Serve the governed tool catalog over MCP 2026-07-28 (stdio; needs the [gcp] extra).
 	python -m compliance_advisory.mcp
 
-check: lint test eval evals-doc-check portability demo-selftest tf-validate plugin ## Run the full offline quality gate.
+check: lint test eval evals-doc-check portability demo-selftest tf-validate tf-test plugin ## Run the full offline quality gate.
 
 ui-install: ## Install the console's locked dependencies (proves package-lock.json is valid).
 	npm ci --prefix $(UI_DIR)
@@ -95,13 +95,17 @@ run-api: ## Run the FastAPI service (PROFILE=$(PROFILE)).
 run-ui: ## Run the React / Next.js UI (dev server).
 	cd $(UI_DIR) && npm install && npm run dev
 
-tf-plan: ## Terraform plan for the asia-southeast1 infrastructure.
-	cd $(TF_DIR) && terraform init -input=false && terraform plan
+tf-plan: ## Terraform plan; pass the state backend, e.g. TF_BACKEND="-backend-config=bucket=B -backend-config=prefix=P".
+	cd $(TF_DIR) && terraform init -input=false $(TF_BACKEND) && terraform plan
 
 tf-validate: ## Offline Terraform format and schema validation; no cloud credentials.
 	cd $(TF_DIR) && terraform fmt -check -recursive -diff \
 		&& terraform init -backend=false -input=false \
 		&& terraform validate -no-color
+
+tf-test: ## Plan-only Terraform tests against mock providers: the posture each variable produces.
+	cd $(TF_DIR) && terraform init -backend=false -input=false \
+		&& terraform test -no-color
 
 clean: ## Remove caches and build artefacts.
 	rm -rf build dist *.egg-info .pytest_cache .mypy_cache .ruff_cache .coverage htmlcov

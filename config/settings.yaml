@@ -60,9 +60,18 @@ agent_search:
   # `us` or `eu` would confine the index to one jurisdiction and is the stronger choice where a
   # residency obligation bites; an installation under one sets this accordingly. The
   # gcp.resourceLocations Org Policy must be wide enough to permit whichever is chosen.
-  location: global
+  #
+  # An override rather than a literal, because a deployment has to be able to say it: a project
+  # whose residency policy refuses `global` (the reference deployment's does) creates the data
+  # store in `us`, and the API must then call `us`. Three states, like every read here: unset
+  # keeps `global`, set-and-empty refuses, and anything but global/us/eu is refused when the
+  # adapter is built (adapters/gcp/_agent_search.py).
+  location: ${COMPLIANCE_AGENT_SEARCH_LOCATION:-global}
   serving_config: default_search
 
+# AlloyDB is read only by the `platform` profile's ledger and tracker bindings below. The `gcp`
+# profile keeps both in Firestore, whose database is named for `region`
+# (compliance-advisory-<region>) and needs no setting here.
 alloydb:
   instance_uri: ${COMPLIANCE_ALLOYDB_URI:-}
   database: compliance
@@ -344,8 +353,21 @@ adapters:
     local: compliance_advisory.adapters.local.tool_catalog:LocalToolCatalogAdapter
     live: compliance_advisory.adapters.local.tool_catalog:LocalToolCatalogAdapter
     onprem: compliance_advisory.adapters.onprem.tool_catalog:OnPremToolCatalogAdapter
+  # The freshness ledger and the horizon tracker share one managed store per profile.
+  #
+  # gcp binds Firestore: a store billed by the operation and the byte, which costs nothing while
+  # nobody asks, because this is the self-contained managed install and it must idle at zero.
+  # AlloyDB bills its primary by the hour and nothing in the deployment can pause it.
+  #
+  # platform binds AlloyDB, and that is where the choice to run it is made. The platform profile
+  # is the install that runs beside the horizontal platform services, and agent-registry's
+  # reference backend is itself AlloyDB, so an estate on this profile already operates a
+  # private-networked AlloyDB. Keeping the selection in this one table (rather than a second
+  # selector variable, or an environment variable naming a class) keeps "switching profile
+  # changes bindings" true. The infrastructure half is `enable_alloydb` in
+  # infra/terraform/variables.tf, which is off unless a deployment turns it on.
   ledger:
-    gcp: compliance_advisory.adapters.gcp.alloydb_ledger:AlloyDBLedgerAdapter
+    gcp: compliance_advisory.adapters.gcp.firestore_ledger:FirestoreLedgerAdapter
     platform: compliance_advisory.adapters.gcp.alloydb_ledger:AlloyDBLedgerAdapter
     local: compliance_advisory.adapters.local.ledger:LocalLedgerAdapter
     live: compliance_advisory.adapters.local.ledger:LocalLedgerAdapter
@@ -360,10 +382,11 @@ adapters:
     local: compliance_advisory.adapters.source_catalog:RegistrySourceCatalogAdapter
     live: compliance_advisory.adapters.source_catalog:RegistrySourceCatalogAdapter
     onprem: compliance_advisory.adapters.source_catalog:RegistrySourceCatalogAdapter
-  # Implementation journey for each assessed regulatory change: AlloyDB alongside the
-  # freshness ledger (gcp), SQLite (local), fail-fast sovereign placeholder (onprem).
+  # Implementation journey for each assessed regulatory change, in the same store as the
+  # freshness ledger: Firestore (gcp), AlloyDB (platform), SQLite (local), fail-fast sovereign
+  # placeholder (onprem).
   horizon_tracker:
-    gcp: compliance_advisory.adapters.gcp.alloydb_horizon_tracker:AlloyDBHorizonTrackerAdapter
+    gcp: compliance_advisory.adapters.gcp.firestore_horizon_tracker:FirestoreHorizonTrackerAdapter
     platform: compliance_advisory.adapters.gcp.alloydb_horizon_tracker:AlloyDBHorizonTrackerAdapter
     local: compliance_advisory.adapters.local.horizon_tracker:LocalHorizonTrackerAdapter
     live: compliance_advisory.adapters.local.horizon_tracker:LocalHorizonTrackerAdapter

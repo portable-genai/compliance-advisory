@@ -1,5 +1,9 @@
 """AlloyDB corpus-freshness ledger adapter (the 7-day fetch-at-runtime model).
 
+Bound under the ``platform`` profile. The ``gcp`` profile binds :mod:`.firestore_ledger`,
+which costs nothing while idle, and ``infra/terraform/alloydb.tf`` creates this adapter's
+cluster only when a deployment sets ``enable_alloydb``.
+
 Implements :class:`CorpusLedgerPort` against **AlloyDB for PostgreSQL**. Documents
 themselves live in Agent Search; this ledger tracks *freshness* — for each registered
 regulatory source it records when it was fetched, when it expires (fetch time + TTL),

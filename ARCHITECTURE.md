@@ -112,12 +112,12 @@ named).
 | 11 | `EvaluationGatePort` | Eval gate (`model-quality-gate`, P-08) | `gcp.genai_eval:GenAiEvalAdapter` | `local.evaluation:LocalOfflineEvalAdapter` | `onprem.evaluation:OnPremEvalAdapter` |
 | 12 | `AgentRegistryPort` | A2A registry (`agent-registry`) | `gcp.a2a_registry:A2ARegistryAdapter` | `local.registry:LocalRegistryAdapter` | `onprem.registry:OnPremRegistryAdapter` |
 | 13 | `ToolCatalogPort` | Governed MCP tools (`agent-registry`) | `gcp.mcp_tool_catalog:McpToolCatalogAdapter` | `local.tool_catalog:LocalToolCatalogAdapter` | `onprem.tool_catalog:OnPremToolCatalogAdapter` |
-| 14 | `CorpusLedgerPort` | Freshness ledger | `gcp.alloydb_ledger:AlloyDBLedgerAdapter` | `local.ledger:LocalLedgerAdapter` (SQLite) | `onprem.ledger:OnPremLedgerAdapter` |
+| 14 | `CorpusLedgerPort` | Freshness ledger | `gcp.firestore_ledger:FirestoreLedgerAdapter` (`gcp.alloydb_ledger:AlloyDBLedgerAdapter` under `platform`) | `local.ledger:LocalLedgerAdapter` (SQLite) | `onprem.ledger:OnPremLedgerAdapter` |
 | 15 | `CorpusIngestionPort` | Document ingestion | `gcp.agent_search_ingestion:AgentSearchIngestionAdapter` | `local.retrieval:LocalIngestionAdapter` | `onprem.ingestion:OnPremIngestionAdapter` |
 | 16 | `RequirementSourcePort` | Requirement text for control mapping | `adapters.requirements:RetrievalRequirementSourceAdapter` (in-process bind to `RetrievalPort`) | same adapter, follows the active profile's `RetrievalPort` | same adapter, inherits the on-prem retrieval placeholder's fail-fast |
 | 17 | `ControlInventoryPort` | Observed GCP control posture | `gcp.scc_inventory:SccControlInventoryAdapter` (SCC + Asset Inventory + Assured Workloads) | `local.inventory:LocalControlInventoryAdapter` (canned posture) | `onprem.inventory:OnPremControlInventoryAdapter` |
 | 18 | `RegSourceCatalogPort` | Regulator-grade metadata per corpus source (horizon) | `adapters.source_catalog:RegistrySourceCatalogAdapter` (the in-repo source registry) | same adapter | same adapter |
-| 19 | `HorizonTrackerPort` | Implementation journey per assessed change (horizon) | `gcp.alloydb_horizon_tracker:AlloyDBHorizonTrackerAdapter` | `local.horizon_tracker:LocalHorizonTrackerAdapter` (SQLite) | `onprem.horizon_tracker:OnPremHorizonTrackerAdapter` |
+| 19 | `HorizonTrackerPort` | Implementation journey per assessed change (horizon) | `gcp.firestore_horizon_tracker:FirestoreHorizonTrackerAdapter` (`gcp.alloydb_horizon_tracker:AlloyDBHorizonTrackerAdapter` under `platform`) | `local.horizon_tracker:LocalHorizonTrackerAdapter` (SQLite) | `onprem.horizon_tracker:OnPremHorizonTrackerAdapter` |
 
 Rows 16 and 17 back the control-mapping module (the control-mapping capability). Ports 1..15
 are the assistant's driven ports; two further cross-cutting ports (`IdentityPort`,
@@ -135,8 +135,8 @@ Rows 18 and 19 back the horizon-scanning module. `RegSourceCatalogPort` binds to
 class under every profile because the source registry is a repo-local YAML file rather than
 a managed service: pinning one implementation is what makes the horizon diff byte-identical
 offline and in production, and there is nothing cloud-specific for a placeholder to stand in
-front of. `HorizonTrackerPort` does have a real managed backend (an AlloyDB table beside the
-freshness ledger), so its on-prem placeholder raises rather than returning empty results, a
+front of. `HorizonTrackerPort` does have a real managed backend (a Firestore collection beside
+the freshness ledger on `gcp`, an AlloyDB table on `platform`), so its on-prem placeholder raises rather than returning empty results, a
 silent "nothing to implement" would let a regulatory obligation disappear from the journey.
 Horizon scanning adds **no** new corpus port: it reads the existing `CorpusLedgerPort`
 (row 14), which was extended with the generation each ingest supersedes.
@@ -363,11 +363,11 @@ flowchart TB
         end
         SESS["Sessions + Memory Bank"]
         AS["Agent Search<br/>(shared reg KB datastore)"]
-        ADB[("AlloyDB<br/>freshness ledger")]
+        FS[("Firestore<br/>freshness ledger + tracker")]
         MA["Model Armor<br/>(regional endpoint)"]
         DLP["Sensitive Data Protection / DLP"]
         SCC["Security Command Center +<br/>Cloud Asset Inventory +<br/>Assured Workloads<br/>(control posture, scc_inventory)"]
-        LOG["Cloud Logging<br/>locked WORM bucket"]
+        LOG["Cloud Logging<br/>audit bucket, locked when worm_locked"]
         TR["Cloud Trace<br/>(OTel, content OFF)"]
         EVAL["Gen AI evaluation service"]
         KMS["Cloud KMS<br/>regional CMEK"]
@@ -379,12 +379,11 @@ flowchart TB
     ROOT --> MA
     ROOT --> DLP
     ROOT --> SCC
-    ROOT --> ADB
+    ROOT --> FS
     ROOT --> LOG
     ROOT --> TR
     EVAL -. promotion gate .-> ROOT
-    KMS -. encrypts .-> AS
-    KMS -. encrypts .-> ADB
+    KMS -. encrypts .-> FS
     KMS -. encrypts .-> LOG
 ```
 
@@ -409,7 +408,7 @@ flowchart TB
 
     subgraph read["On a read (inline)"]
         Q["ComplianceQAService"]
-        L["CorpusLedgerPort<br/>(AlloyDB)"]
+        L["CorpusLedgerPort<br/>(Firestore on gcp)"]
         DECIDE{"FreshnessPolicy<br/>is_stale?"}
         Q --> L --> DECIDE
         DECIDE -- fresh --> SERVE["retrieve() from Agent Search"]
@@ -417,7 +416,7 @@ flowchart TB
     end
 
     subgraph refresh["Out of band (scheduled)"]
-        CRON["corpus-refresh workflow<br/>(cron + workflow_dispatch)"]
+        CRON["Cloud Scheduler<br/>-> Cloud Run job (refresh_job)"]
         EXPIRING["ledger.list_expired()"]
         CRON --> EXPIRING --> FETCH
     end
@@ -436,14 +435,16 @@ flowchart TB
   `previous_status`). Those four fields are what make the ledger DIFFABLE, and therefore what
   lets horizon scanning (§3b) run on the one ledger instead of a parallel copy. They are
   written by `domain/horizon/carry_forward` inside the same upsert the ingest already does,
-  and both the SQLite and AlloyDB adapters migrate an existing table in place.
+  and the SQLite and AlloyDB adapters migrate an existing table in place; a Firestore document
+  written before those fields existed reads them as empty, so it needs no migration.
 - **Inline path:** a query checks the ledger; if a needed source is stale or missing it is
   re-fetched and re-ingested **before** the answer is generated, so answers are never built
   on an expired document.
 - **Scheduled path:** `CorpusLedgerPort.list_expired()` drives a background refresh so most
-  reads hit fresh data and never pay the fetch latency. It has no scheduler today: the workflow
-  that described the schedule could not run and was removed, so this path is manual until a
-  Cloud Scheduler job is wired for it.
+  reads hit fresh data and never pay the fetch latency. `infra/terraform/scheduler.tf` creates a
+  daily Cloud Scheduler trigger and a Cloud Run job that runs `pipelines.refresh_job` from the
+  API image, once a deployment names that image's digest in `corpus_refresh_image`; without it
+  the path is manual.
 - **Policy in the domain:** `FreshnessPolicy(ttl_days).expires_at(...)` / `.is_stale(...)`.
 
 ---
@@ -563,7 +564,7 @@ PT ids apply, some in an adapted form noted inline.
 | # | Principle (generic) | Mechanism in this repo | Proof |
 |---|---------------------|------------------------|-------|
 | PT-13 | **Infra names and postures are variables, not literals.** The genuinely per-deploy and irreversible pieces are explicit knobs, not a fork: the target region (validated), the WORM retention window, and toggles for the org-level and irreversible pieces. | [`infra/terraform/variables.tf`](infra/terraform/variables.tf): `project_id`, `region` (a deploy-time input validated against `allowed_regions`, the residency allowlist, which also generates the resource-location Org Policy; both default to `asia-southeast1`), `retention_days` (validated), `enable_vpc_sc`, `org_id`, `access_policy_id`. Adapted from the reference: this stack is single-tenant with concrete in-region service names (no `name_prefix`), so the "second enterprise is a tfvars file" claim is narrower here. | `terraform -chdir=infra/terraform validate` (Success); `terraform -chdir=infra/terraform fmt -check -recursive`. |
-| PT-14 | **Outputs are the contract between infra and app.** Every Terraform output names the exact setting the app reads, and the app's config resolves those variables with safe defaults, so "deploy" is apply-then-export, never editing code. | [`infra/terraform/outputs.tf`](infra/terraform/outputs.tf) descriptions carry the `settings.yaml` / `COMPLIANCE_*` names (`kms_key`, `data_store_id`, `alloydb_instance_uri`, ...); [`config/settings.yaml`](config/settings.yaml) reads `${COMPLIANCE_...:-default}` tokens, coerced in [`config.py`](src/compliance_advisory/config.py). | `terraform -chdir=infra/terraform validate`; [`docs/runbook.md`](docs/runbook.md) section 0/1 is the copy-paste export block. |
+| PT-14 | **Outputs are the contract between infra and app.** Every Terraform output names the exact setting the app reads, and the app's config resolves those variables with safe defaults, so "deploy" is apply-then-export, never editing code. | [`infra/terraform/outputs.tf`](infra/terraform/outputs.tf) descriptions carry the `settings.yaml` / `COMPLIANCE_*` names (`kms_key`, `data_store_id`, `firestore_database`, ...); [`config/settings.yaml`](config/settings.yaml) reads `${COMPLIANCE_...:-default}` tokens, coerced in [`config.py`](src/compliance_advisory/config.py). | `terraform -chdir=infra/terraform validate`; [`docs/runbook.md`](docs/runbook.md) section 0/1 is the copy-paste export block. |
 
 ---
 
@@ -623,7 +624,7 @@ All other SC ids apply, some in an adapted form noted inline.
 | # | Principle (generic) | Mechanism in this repo | Proof |
 |---|---------------------|------------------------|-------|
 | SC-14 | **Residency by construction.** One region selected at deploy and validated (an unapproved region fails at plan/validate time); regional service endpoints, never global; an Org Policy makes out-of-region resource creation impossible rather than avoided. | `region` validated against the `allowed_regions` residency allowlist in [`infra/terraform/variables.tf`](infra/terraform/variables.tf); regional Model Armor host in [`config/settings.yaml`](config/settings.yaml); the `gcp.resourceLocations` project policy in [`infra/terraform/org_policy.tf`](infra/terraform/org_policy.tf). | `terraform -chdir=infra/terraform validate` (the `region` validation block rejects any off-list value at plan time). |
-| SC-15 | **CMEK does not cascade: bind it everywhere, explicitly.** Each service that touches the data gets its own key binding and its own service-agent grant; assume nothing inherits encryption. | [`infra/terraform/kms.tf`](infra/terraform/kms.tf): one regional key ring/key with `prevent_destroy`, and explicit `cryptoKeyEncrypterDecrypter` bindings for AlloyDB, Discovery Engine (Agent Search), Vertex/Agent Runtime and Cloud Logging; the app/pipeline SAs get their own bindings in [`iam.tf`](infra/terraform/iam.tf). | `terraform -chdir=infra/terraform validate`; every CMEK-capable resource names the one key. |
+| SC-15 | **CMEK does not cascade: bind it everywhere, explicitly.** Each service that touches the data gets its own key binding and its own service-agent grant; assume nothing inherits encryption. | [`infra/terraform/kms.tf`](infra/terraform/kms.tf): one regional key ring/key with `prevent_destroy`, and explicit `cryptoKeyEncrypterDecrypter` bindings for Discovery Engine (Agent Search), Vertex/Agent Runtime and Cloud Logging, plus Firestore when `firestore_cmek_enabled` and AlloyDB when `enable_alloydb`; the app/pipeline SAs get their own bindings in [`iam.tf`](infra/terraform/iam.tf). | `terraform -chdir=infra/terraform validate`; every CMEK-capable resource names the one key. |
 | SC-16 | **Blast-radius controls default on, with an explicit dry run.** A VPC-SC perimeter around the AI/data APIs (on by default, documented dry-run-first deploy order), least-privilege per-workload service accounts, uniform bucket access and no external VM IPs. | [`infra/terraform/vpc_sc.tf`](infra/terraform/vpc_sc.tf) (`enable_vpc_sc` default `true`, deploy-order caveat documents the dry-run-first flip), two scoped SAs (app + pipeline) in [`iam.tf`](infra/terraform/iam.tf), `uniformBucketLevelAccess` and `vmExternalIpAccess` denials in [`org_policy.tf`](infra/terraform/org_policy.tf). Adapted from the reference: no `disableServiceAccountKeyCreation` org policy is present. | `terraform -chdir=infra/terraform validate`. |
 
 ### 9.6 Graceful degradation

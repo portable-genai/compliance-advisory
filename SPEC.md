@@ -63,14 +63,14 @@ Mandatory platform dependencies: `agent-guardrail-gateway`, `agent-registry`, `a
 | Repo | `compliance-advisory` (public, Apache-2.0), Python 3.12, ADK 2.3.0, React/Next.js UI |
 | Retrieval | **Agent Search only** as the production backend. Terraform **fails fast** if Agent Search is unavailable in the selected region. No RAG-Engine / File-Search production fallback. |
 | Web grounding | **Gemini API `google_search` tool**, assumed available in the Terraform-selected region; isolated in a grounding sub-agent. Toggle via `grounding_enabled`. |
-| Reg KB data | **Fetch-at-runtime, 7-day TTL.** Docs stored in **Agent Search**; freshness ledger in **AlloyDB**. Fresh (<7d) → serve from store; expired → re-fetch + re-ingest before answering; scheduled job refreshes expiring sources. Repo ships only the source registry + a tiny synthetic sample. |
+| Reg KB data | **Fetch-at-runtime, 7-day TTL.** Docs stored in **Agent Search**; freshness ledger in **Firestore** on `gcp` (AlloyDB on `platform`). Fresh (<7d) → serve from store; expired → re-fetch + re-ingest before answering; scheduled job refreshes expiring sources. Repo ships only the source registry + a tiny synthetic sample. |
 | Runtime | **Agent Runtime only** (managed, ex-Agent Engine) with GA Sessions + Memory Bank. |
 | UI | **React / Next.js** app. |
 | Region | `asia-southeast1` (Singapore) for every service. |
 | Lock-in | Ports-and-adapters. GCP adapters are primary; **on-prem placeholder adapters** are `NotImplementedError` stubs satisfying the same Protocols (no open-source product named). Migration target is Google Distributed Cloud. |
 | Control mapping | A **module of this service** (`domain/control_mapping/`), not a separate repo. Adds the `/map`, `/gaps`, `/evidence-pack` APIs and two ports (`RequirementSourcePort`, `ControlInventoryPort`). Coverage is computed **server-side** in `domain/control_mapping/_mapping.py` from which mapped controls are observed ENABLED (the model's coverage hint is only a fallback). |
 | Reg-KB unification | **One** regulatory knowledge base. The mapping requirement source binds **in-process** to the assistant's existing retrieval (`RetrievalPort`, the `compliance-reg-kb` Agent Search store on `gcp`). Retired by the merge: the duplicate Gemini File Search store `control-mapping-reg-kb`, the old HTTP hop from the toolkit to the assistant's `/ask`, and the duplicate local reg seed. APRA CPS 234 (Information Security), the one reg instrument unique to the old toolkit seed, was carried into this repo's shared local corpus. |
-| Horizon scanning | A **module of this service** (`domain/horizon/`). Change detection diffs the EXISTING AlloyDB/SQLite freshness ledger (extended with the superseded generation), applicability and materiality are pure code over config-owned thresholds (`horizon:` in `config/settings.yaml`), ownership routing is deterministic, and every consequential call routes to `human-review-console`. Adds `/horizon/*` and two ports (`RegSourceCatalogPort`, `HorizonTrackerPort`). |
+| Horizon scanning | A **module of this service** (`domain/horizon/`). Change detection diffs the EXISTING freshness ledger (Firestore, AlloyDB or SQLite by profile), extended with the superseded generation; applicability and materiality are pure code over config-owned thresholds (`horizon:` in `config/settings.yaml`), ownership routing is deterministic, and every consequential call routes to `human-review-console`. Adds `/horizon/*` and two ports (`RegSourceCatalogPort`, `HorizonTrackerPort`). |
 | Posture sources | The mapping module reads the live GCP control posture from **Security Command Center + Cloud Asset Inventory + Assured Workloads** (`adapters/gcp/scc_inventory.py`), a canned deterministic posture on `local`, a fail-fast placeholder on `onprem`. No remote-platform variant: posture is read where the service runs. |
 
 ## 3. Pinned stack (current GA, mid-2026)
@@ -91,16 +91,16 @@ the Gemini Enterprise *app*.
 | Sessions / Memory | Agent Platform Sessions / Memory Bank | ADK `VertexAiSessionService` / `VertexAiMemoryBankService` |
 | Guardrail | Model Armor | `modelarmor.asia-southeast1.rep.googleapis.com` `:sanitizeUserPrompt`/`:sanitizeModelResponse` |
 | PII redaction | Sensitive Data Protection / DLP | `google-cloud-dlp` `deidentifyContent` |
-| Audit (WORM) | Cloud Logging locked bucket + Audit Logs | retention 2557 days; `DATA_READ` enabled |
+| Audit (WORM) | Cloud Logging bucket, locked when the deployment states `worm_locked = true`, + Audit Logs | retention 2557 days when locked; `DATA_READ` enabled where the stack owns the project audit config |
 | Tracing | Cloud Trace via OpenTelemetry | `opentelemetry-exporter-gcp-trace`; content capture OFF |
 | Eval gate | Gen AI evaluation service | `vertexai.Client(...).evals` |
 | Interop | A2A v1.0 + MCP 2026-07-28 | AgentCard `/.well-known/agent-card.json`; ADK `to_a2a`, `McpToolset` |
-| Freshness ledger | AlloyDB | `google-cloud-alloydb-connector[pg8000]` + SQLAlchemy |
+| Freshness ledger + horizon tracker | Firestore Native (`gcp`); AlloyDB (`platform`) | `google-cloud-firestore`; `google-cloud-alloydb-connector[pg8000]` + SQLAlchemy |
 | Sovereignty | VPC-SC, regional CMEK, Org Policy, Assured Workloads | `asia-southeast1` |
 
 ⚠️ Gotchas to honour: regional endpoints + per-service CMEK for residency (global endpoint
-gives none); message-content capture OFF in spans (PII); locked log bucket is irreversible
-(retention is a Terraform var); never use the floating ADK default model or `gemini-2.0-flash`
+gives none); message-content capture OFF in spans (PII); a locked log bucket is irreversible,
+so `worm_locked` has no default and retention is a Terraform var; never use the floating ADK default model or `gemini-2.0-flash`
 (discontinued); one built-in tool per agent → `google_search` lives in its own sub-agent.
 
 ## 4. Adapter convention (the build contract)
@@ -135,13 +135,13 @@ gives none); message-content capture OFF in spans (PII); locked log bucket is ir
 | PII redaction | DLP | regex (SG NRIC/FIN, email, phone) | `NotImplementedError` |
 | Audit | Cloud Logging WORM | append-only SQLite / JSONL | `NotImplementedError` |
 | Tracer | Cloud Trace | no-op spans | `NotImplementedError` |
-| Registry / sessions / memory / ledger | AlloyDB / Firestore / Vertex | SQLite + in-process | `NotImplementedError` |
+| Registry / sessions / memory / ledger | A2A registry / Vertex Sessions / Memory Bank / Firestore (AlloyDB under `platform`) | SQLite + in-process | `NotImplementedError` |
 | Eval gate | Gen AI evaluation | the in-repo offline `eval/run_eval.py` | `NotImplementedError` |
 | Grounding | `google_search` tool | disabled (no web egress) | benign defaults |
 | Requirement source (mapping) | in-process bind to `RetrievalPort` (Agent Search) | in-process bind to `RetrievalPort` (SQLite FTS5) | in-process bind to the on-prem retrieval placeholder (fail-fast) |
 | Control inventory (mapping) | SCC + Asset Inventory + Assured Workloads | canned deterministic posture | `NotImplementedError` |
 | Source catalog (horizon) | in-repo source registry | in-repo source registry | in-repo source registry |
-| Implementation tracker (horizon) | AlloyDB `horizon_tracking` | SQLite | `NotImplementedError` |
+| Implementation tracker (horizon) | Firestore `horizon_tracking` (AlloyDB table under `platform`) | SQLite | `NotImplementedError` |
 
 Default `local` is **SDK-free and emulator-free**. Optional higher-fidelity local runs route
 the registry / sessions / memory / ledger to Google's official **Firestore emulator** when
@@ -370,7 +370,7 @@ is tenant-scoped in the adapter AND filtered again in the domain.
 | Port | `gcp` | `local` | `onprem` |
 |---|---|---|---|
 | `RegSourceCatalogPort` | the in-repo source registry (`adapters/source_catalog.py`) | same class | same class |
-| `HorizonTrackerPort` | AlloyDB `horizon_tracking` (`adapters/gcp/alloydb_horizon_tracker.py`) | SQLite (`adapters/local/horizon_tracker.py`) | `NotImplementedError` placeholder |
+| `HorizonTrackerPort` | Firestore `horizon_tracking` (`adapters/gcp/firestore_horizon_tracker.py`); AlloyDB under `platform` (`adapters/gcp/alloydb_horizon_tracker.py`) | SQLite (`adapters/local/horizon_tracker.py`) | `NotImplementedError` placeholder |
 
 The source catalog is one class across every profile because the registry is a repo-local
 file, not a managed service: that is what makes the horizon diff identical offline and in

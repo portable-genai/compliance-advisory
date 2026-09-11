@@ -1,45 +1,44 @@
-# vpc_sc.tf — VPC Service Controls perimeter around the AI/data plane.
+# vpc_sc.tf: VPC Service Controls perimeter around the AI/data plane.
 #
 # General Principle map:
-#   P-03 (residency + exfiltration control): a service perimeter draws a logical
-#         boundary around the sovereignty-critical APIs (Vertex/Agent Platform,
-#         Agent Search, DLP, Logging, AlloyDB, KMS, Secret Manager, Storage). Data
-#         cannot be read across the boundary to a non-Singapore project, which is
-#         what stops the regulatory corpus and audit log from leaving the country.
-#   P-01 (least surface): only the services C1 uses are inside the perimeter.
+#   P-03 (residency + exfiltration control): a service perimeter draws a logical boundary
+#         around the sovereignty-critical APIs, so data cannot be read across it to a project
+#         outside the boundary.
+#   P-01 (least surface): only the services this app uses are inside the perimeter, and the
+#         AlloyDB API only when AlloyDB exists.
 #
-# Guarded by var.enable_vpc_sc so non-prod/dev applies can skip it (count = 0).
+# Guarded by var.enable_vpc_sc (count = 0 when false). A deployment into a project whose
+# perimeter another stack already owns declines it: a second REGULAR perimeter over the same
+# project enforces where the established posture may only observe.
 #
 # DEPLOY-ORDER CAVEAT:
-#   The perimeter blocks API calls from outside it. If you enable this BEFORE the
-#   resources in the other files are created (or before your Terraform runner /
-#   CI identity is added to the perimeter's access levels), those API calls will
-#   be denied and the apply will fail. Recommended order:
-#     1. Apply everything with enable_vpc_sc = false.
-#     2. Add your operator/CI identity to an access level.
-#     3. Re-apply with enable_vpc_sc = true to enforce the boundary.
-#   Tightening a live perimeter can also break the SDK-based Agent Runtime deploy
-#   if that runner is not inside the perimeter. # verify: VPC-SC dry-run mode.
+#   The perimeter blocks API calls from outside it. Enabling it BEFORE the resources in the
+#   other files exist (or before the Terraform runner / CI identity is in an access level)
+#   denies those calls and fails the apply. Apply with enable_vpc_sc = false first, add the
+#   operator identity to an access level, then re-apply with enable_vpc_sc = true. Consider the
+#   perimeter's dry-run mode before enforcing it.
 
 locals {
-  perimeter_restricted_services = [
-    "aiplatform.googleapis.com",
-    "discoveryengine.googleapis.com",
-    "dlp.googleapis.com",
-    "modelarmor.googleapis.com",
-    "logging.googleapis.com",
-    "cloudtrace.googleapis.com",
-    "alloydb.googleapis.com",
-    "cloudkms.googleapis.com",
-    "secretmanager.googleapis.com",
-    "storage.googleapis.com",
-    # Control-posture plane merged from the the cloud control-mapping toolkit control-mapping module — kept inside
-    # the sovereignty boundary so posture data cannot leave the country (P-03).
-    "securitycenter.googleapis.com",
-    "cloudasset.googleapis.com",
-    "assuredworkloads.googleapis.com",
-    "pubsub.googleapis.com",
-  ]
+  perimeter_restricted_services = concat(
+    [
+      "aiplatform.googleapis.com",
+      "discoveryengine.googleapis.com",
+      "dlp.googleapis.com",
+      "modelarmor.googleapis.com",
+      "logging.googleapis.com",
+      "cloudtrace.googleapis.com",
+      "firestore.googleapis.com",
+      "cloudkms.googleapis.com",
+      "secretmanager.googleapis.com",
+      "storage.googleapis.com",
+      # The control-posture plane, kept inside the boundary so posture data stays in it.
+      "securitycenter.googleapis.com",
+      "cloudasset.googleapis.com",
+      "assuredworkloads.googleapis.com",
+      "pubsub.googleapis.com",
+    ],
+    var.enable_alloydb ? ["alloydb.googleapis.com"] : [],
+  )
 }
 
 resource "google_access_context_manager_service_perimeter" "compliance" {

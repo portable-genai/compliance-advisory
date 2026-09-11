@@ -180,7 +180,8 @@ class ModelSettings:
 @dataclass(frozen=True)
 class AgentSearchSettings:
     data_store_id: str = "compliance-reg-kb"
-    location: str = "asia-southeast1"
+    #: One of the three locations Agent Search serves (global, us, eu). Never a Cloud region.
+    location: str = "global"
     serving_config: str = "default_search"
     engine_id: str = "compliance-advisory-engine"
 

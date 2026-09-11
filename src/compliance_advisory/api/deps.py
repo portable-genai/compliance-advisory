@@ -284,7 +284,7 @@ class CorpusService:
     """Stable ``.refresh()`` / ``.status()`` surface over the corpus pipeline + ledger.
 
     ``refresh`` re-fetches and re-ingests expired sources (the 7-day TTL pass) into Agent
-    Search; ``status`` returns the AlloyDB freshness ledger. Used by the API ``/corpus``
+    Search; ``status`` returns the freshness ledger. Used by the API ``/corpus``
     endpoints and the ``compliance corpus`` CLI commands.
     """
 

@@ -8,7 +8,7 @@ This is where the three corpus concerns meet (SPEC §2, §5):
    Protection / DLP demonstrates the P-04 "minimise data" control end to end and means a
    stray PII string in a consultation annex never reaches the store or an audit trail.
 3. **Ingest** the redacted document into **Agent Search** via :class:`CorpusIngestionPort`,
-   then **record freshness** in the **AlloyDB** ledger (:class:`CorpusLedgerPort`) with an
+   then **record freshness** in the freshness ledger (:class:`CorpusLedgerPort`) with an
    ``expires_at`` computed by :class:`FreshnessPolicy` from ``settings.corpus.ttl_days``.
 
 On a read, the QA / API flow can call :func:`ensure_fresh` for any source it is about to

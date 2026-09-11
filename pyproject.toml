@@ -58,6 +58,10 @@ gcp = [
   "google-cloud-assured-workloads>=2.4",
   "opentelemetry-sdk>=1.27",
   "opentelemetry-exporter-gcp-trace>=1.7",
+  # The gcp profile's freshness ledger and horizon tracker (adapters/gcp/firestore_*.py). The
+  # same floor marketing-compliance-gate resolves, so the fleet installs one version.
+  "google-cloud-firestore>=2.30",
+  # The platform profile's AlloyDB ledger and tracker (adapters/gcp/alloydb_*.py).
   "google-cloud-alloydb-connector[pg8000]>=1.4",
   "sqlalchemy>=2.0",
   "a2a-sdk[http-server]>=1.1",
