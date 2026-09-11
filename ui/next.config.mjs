@@ -29,6 +29,10 @@ const nextConfig = {
   // house style forbids in shipped markdown. tests/unit/test_ui_agent_documents.py fails the
   // gate if this line goes away or if either file turns up on disk anyway.
   agentRules: false,
+  // Standalone output: the deployed image copies `.next/standalone` and starts it with
+  // `node server.js`, so the runtime container carries no npm and no package manager. See
+  // ui/Dockerfile; tests/unit/test_ui_image.py fails the gate if the two stop agreeing.
+  output: "standalone",
   ...(basePath ? { basePath, assetPrefix: basePath } : {}),
   async headers() {
     return [

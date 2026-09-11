@@ -195,3 +195,21 @@ flowchart LR
 - Graceful degradation: every endpoint surfaces clear errors in-line; the corpus
   table and health pill show backend reachability without crashing the console.
 ```
+
+## Container image
+
+`ui/Dockerfile` builds the console as its own image, the shape an embedding host pins by digest
+beside the API image. The base path and the API base are build arguments, because Next.js inlines
+both into the bundle:
+
+```bash
+docker build ui \
+  --build-arg NEXT_PUBLIC_BASE_PATH=/apps/compliance-advisory \
+  --build-arg NEXT_PUBLIC_API_BASE=/apps/compliance-advisory/api \
+  -t compliance-advisory-ui
+```
+
+The build stage runs the console's own checks (types, unit tests, build, hydration) before it
+produces the standalone server. The runtime stage is `node server.js` on port 3000, as a non-root
+user with no package manager. `NEXT_PUBLIC_FRAME_ANCESTORS` stays a runtime value, read per
+request in `proxy.ts`.
