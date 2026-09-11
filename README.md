@@ -128,7 +128,7 @@ flowchart TB
     end
 
     subgraph gcp["adapters/gcp/*: primary (managed services)"]
-        G["Agent Search · Gemini · Model Armor ·<br/>DLP · Cloud Logging WORM · Cloud Trace ·<br/>Agent Runtime · AlloyDB · Gen AI Evals"]
+        G["Agent Search · Gemini · Model Armor ·<br/>DLP · Cloud Logging WORM · Cloud Trace ·<br/>Agent Runtime · Firestore · Gen AI Evals"]
     end
     subgraph loc["adapters/local/*: WORKING offline stack"]
         LO["SQLite FTS5 · deterministic LLM ·<br/>heuristic guardrail · regex DLP ·<br/>append-only audit (SDK-free, seedable)"]
@@ -186,16 +186,16 @@ sequence diagram, and the runtime topology.
 | Sessions / Memory | Agent Platform Sessions / Memory Bank | ADK `VertexAiSessionService` / `VertexAiMemoryBankService` |
 | Guardrail | Model Armor | `modelarmor.asia-southeast1.rep.googleapis.com` `:sanitizeUserPrompt` / `:sanitizeModelResponse` |
 | PII redaction | Sensitive Data Protection / DLP | `google-cloud-dlp` `deidentifyContent` |
-| Audit (WORM) | Cloud Logging locked bucket + Audit Logs | retention 2557 days (~7y); `DATA_READ` enabled |
+| Audit (WORM) | Cloud Logging bucket, locked when the deployment states `worm_locked = true`, + Audit Logs | retention 2557 days (~7y) when locked; `DATA_READ` enabled |
 | Tracing | Cloud Trace via OpenTelemetry | `opentelemetry-exporter-gcp-trace`; content capture **OFF** |
 | Eval gate | Gen AI evaluation service | `vertexai.Client(...).evals` |
 | Interop | A2A v1.0 + MCP 2026-07-28 | AgentCard `/.well-known/agent-card.json`; ADK `to_a2a`, `McpToolset` |
-| Freshness ledger | AlloyDB | `google-cloud-alloydb-connector[pg8000]` + SQLAlchemy |
+| Freshness ledger + horizon tracker | Firestore Native (`gcp`); AlloyDB (`platform`) | `google-cloud-firestore`; `google-cloud-alloydb-connector[pg8000]` + SQLAlchemy |
 | Sovereignty | VPC-SC, regional CMEK, Org Policy, Assured Workloads | `asia-southeast1` |
 
 **Gotchas honoured by the build** (SPEC §3): regional endpoints + per-service CMEK for
 residency (the *global* endpoint gives none); message-content capture is **OFF** in spans
-(PII); the locked log bucket is **irreversible** (retention is a Terraform var); the build
+(PII); a locked log bucket is **irreversible**, so the Terraform refuses to plan until `worm_locked` is stated; the build
 **never** uses the floating ADK default model or `gemini-2.0-flash` (discontinued); only
 one built-in tool per agent → `google_search` lives in its own sub-agent.
 
@@ -265,7 +265,7 @@ pip install -e ".[gcp,dev]"      # adds google-adk, google-genai, discoveryengin
 export GOOGLE_CLOUD_PROJECT=your-sg-project
 export COMPLIANCE_PROFILE=gcp                 # set it explicitly; unset is a third state, not a chosen local
 export COMPLIANCE_KMS_KEY="projects/.../locations/asia-southeast1/keyRings/.../cryptoKeys/..."
-export COMPLIANCE_ALLOYDB_URI="projects/.../locations/asia-southeast1/clusters/.../instances/..."
+export COMPLIANCE_AGENT_SEARCH_LOCATION=us     # where the data store lives: global | us | eu
 gcloud auth application-default login
 
 # Provision infra (fails fast on an Agent Search location the service does not serve):
@@ -311,7 +311,7 @@ synthetic sample, and the corpus is materialised at runtime with a **7-day TTL**
 ```mermaid
 sequenceDiagram
     participant Q as ComplianceQAService
-    participant L as CorpusLedgerPort (AlloyDB)
+    participant L as CorpusLedgerPort (Firestore)
     participant F as Fetcher (source registry)
     participant I as CorpusIngestionPort (Agent Search)
     participant R as RetrievalPort (Agent Search)
@@ -331,23 +331,22 @@ sequenceDiagram
 ```
 
 - **Where things live:** documents in **Agent Search**; the freshness ledger
-  (`source_id`, `version`, `fetched_at`, `expires_at`, `checksum`, `status`) in **AlloyDB**.
+  (`source_id`, `version`, `fetched_at`, `expires_at`, `checksum`, `status`) in **Firestore** on
+  `gcp`, AlloyDB on `platform`.
 - **On a read:** fresh sources (`< ttl_days`) are served from the store; expired or missing
   sources are re-fetched and re-ingested **before** the answer is generated.
-- **Out of band:** a refresh pass over sources whose TTL is about to expire. It is runnable
-  locally and documented in [`docs/runbook.md`](docs/runbook.md), but it has **no automated
-  runner**: the GitHub Actions cron that documented this never ran, because Actions were
-  disabled organization-wide at the time, and the file was removed rather than left standing
-  as a control nobody was performing. GitHub Actions has been the fleet's live CI since
-  2026-09-02, but this cron has not been re-added, so nothing refreshes the corpus unless
-  someone runs it by hand. The inline path above is what keeps an answer off an expired
-  document in the meantime.
+- **Out of band:** a refresh pass over sources whose TTL is about to expire, runnable locally
+  and documented in [`docs/runbook.md`](docs/runbook.md). On a deployment,
+  `infra/terraform/scheduler.tf` runs it daily as a Cloud Run job from the API image once the
+  deployment names that image in `corpus_refresh_image`; without that, nothing refreshes the
+  corpus unless someone runs it by hand. The inline path above is what keeps an answer off an
+  expired document in the meantime.
 - **Config:** `corpus.ttl_days` (default `7`) and `corpus.registry_path` in
   `config/settings.yaml`. The policy lives in `FreshnessPolicy(ttl_days)` in the domain.
 
 The contract is `CorpusLedgerPort` + `CorpusIngestionPort`
 ([`ports/corpus.py`](src/compliance_advisory/ports/corpus.py)); the GCP adapters are
-`AlloyDBLedgerAdapter` and `AgentSearchIngestionAdapter`.
+`FirestoreLedgerAdapter` (`AlloyDBLedgerAdapter` under `platform`) and `AgentSearchIngestionAdapter`.
 
 **The ledger is also the horizon diff base.** Each record additionally carries the
 generation it supersedes (`previous_version`, `previous_checksum`, `previous_fetched_at`,
@@ -428,11 +427,11 @@ the gate must pass before a release can be promoted to Agent Runtime. See
 | **Server-verified identity** | The API never trusts a client-asserted `actor`: an `IdentityPort` adapter resolves a verified `Principal` per request (seeded personas in `local`, the Cloud IAP signed assertion in `gcp`/`platform`), which supplies the audit actor. Unresolvable identity is a 401. See [`docs/embedding-and-identity.md`](docs/embedding-and-identity.md). |
 | **Embedding surface controls** | CSP `frame-ancestors` (env `COMPLIANCE_FRAME_ANCESTORS`, default `'self'`) limits which parents may iframe the UI; CORS is an explicit env allowlist (`COMPLIANCE_CORS_ORIGINS`, never `*`) with pinned methods/headers. |
 | **Region pin** (`asia-southeast1`) | Every service and SDK call targets the Singapore region **except Agent Search, which serves no Cloud region at all** and is therefore a stated deviation rather than a pin — see the residency row in [`COMPLIANCE.md`](COMPLIANCE.md). Terraform fails at plan on a retrieval location the service does not serve. |
-| **VPC Service Controls** | All managed services sit inside a service perimeter so data cannot egress to other projects/regions. |
-| **CMEK** (regional) | Customer-managed Cloud KMS keys (`COMPLIANCE_KMS_KEY`) encrypt Agent Search, AlloyDB, and the log bucket. |
+| **VPC Service Controls** | With `enable_vpc_sc = true` the managed services sit inside a service perimeter so data cannot egress to other projects/regions. A deployment into a project whose perimeter another stack owns declines it. |
+| **CMEK** (regional) | A customer-managed Cloud KMS key encrypts the log bucket, the Firestore database where Google has admitted the project to Firestore CMEK (`firestore_cmek_enabled`), and AlloyDB when enabled. |
 | **PII redaction before model** (**P-04**) | `DlpRedactionAdapter` de-identifies inbound text *before* it reaches the model or any audit/trace sink. |
 | **Guardrail screening** (`agent-guardrail-gateway`) | `ModelArmorGuardrailAdapter` screens INPUT and OUTPUT for prompt injection, jailbreak, sensitive data, and malicious URLs. |
-| **WORM audit** (**P-07**) | `CloudLoggingAuditAdapter` writes already-redacted `AuditEvent`s to a **locked** Cloud Logging bucket (retention 2557 days, irreversible). |
+| **WORM audit** (**P-07**) | `CloudLoggingAuditAdapter` writes already-redacted `AuditEvent`s to a Cloud Logging bucket that is **locked** (retention 2557 days, irreversible) wherever the deployment states `worm_locked = true`; the Terraform has no default for it. |
 | **Tracing without PII** | Cloud Trace via OpenTelemetry with message-content capture **OFF**: spans carry structure, never prompt/response text. |
 | **Maker-checker** (**P-06**) | Every generated answer and consequential artifact requires review; bank-owned config controls escalation signals but cannot silently remove the checker. |
 | **Citations** | Every claim carries a page-level `Citation` so a regulator/CRO can verify it. |
@@ -480,7 +479,7 @@ flowchart LR
     srcconfig["config.py<br/>Settings + Container (DI for the hexagon)"]
     config["config/settings.yaml<br/>port -> adapter bindings, region, models, retention"]
     eval["eval/<br/>run_eval.py + golden dataset (the `model-quality-gate`)"]
-    terraform["terraform/<br/>asia-southeast1 infra (Agent Search, AlloyDB, WORM bucket)"]
+    terraform["infra/terraform/<br/>asia-southeast1 infra (Agent Search, Firestore, audit bucket)"]
     ui["ui/<br/>React / Next.js app"]
     tests["tests/<br/>contract + unit tests (run under the local profile)"]
     docs["docs/<br/>onprem-migration.md, runbook.md"]

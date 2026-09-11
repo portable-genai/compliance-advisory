@@ -29,6 +29,7 @@ from ...domain.models import (
     RetrievalQuery,
     RetrievedPassage,
 )
+from ._agent_search import api_endpoint
 
 if TYPE_CHECKING:  # pragma: no cover - typing only, never imported at runtime
     from google.cloud import discoveryengine_v1
@@ -46,8 +47,8 @@ class AgentSearchRetrievalAdapter:
         self._engine_id = cfg.engine_id
         self._serving_config_id = cfg.serving_config
         self._data_store_id = cfg.data_store_id
-        # Regional endpoint — the global endpoint gives no residency guarantees.
-        self._endpoint = f"{self._location}-discoveryengine.googleapis.com"
+        # The host serving this location: bare for `global`, prefixed for `us`/`eu`.
+        self._endpoint = api_endpoint(self._location)
         self._client: Any | None = None
 
     # ------------------------------------------------------------------ #

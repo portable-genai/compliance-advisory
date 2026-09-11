@@ -22,7 +22,7 @@ Setting `COMPLIANCE_PROFILE` (or `profile:` in the settings) rebinds the entire 
 - `local`: a WORKING offline stack (SQLite FTS5 retrieval, deterministic LLM, regex
   redaction, hash-chained audit). No Google Cloud SDK. The default for dev/test/CI.
 - `gcp`: real managed services (Agent Search retrieval, Gemini, Model Armor guardrail, DLP,
-  Cloud Logging WORM, Cloud Trace, Gen AI Evals, AlloyDB freshness ledger).
+  Cloud Logging WORM, Cloud Trace, Gen AI Evals, Firestore freshness ledger).
 - `platform`: thin HTTP clients delegating to the sibling horizontal-platform and
   de-risking services.
 - `onprem`: fail-fast Google Distributed Cloud placeholders that still satisfy every
@@ -72,7 +72,7 @@ regulatory corpus itself is defined by data (`pipelines/sources/registry.yaml`),
 
 ### What is NOT yet fully portable?
 
-The managed freshness ledger (`AlloyDBLedgerAdapter`) and the managed session/memory stores
+The managed freshness ledger (`FirestoreLedgerAdapter`, or `AlloyDBLedgerAdapter` under `platform`) and the managed session/memory stores
 are cloud-backed under `gcp`; the `local` in-process stores and the `onprem` placeholders
 prove parity, but the production managed equivalents are the migration work. Everything in
 the offline four-artifact pipeline is exercised across `local` and `gcp`.

@@ -12,7 +12,7 @@ Authoritative stack and decisions: [`SPEC.md`](../SPEC.md). Architecture:
 ## 0. Prerequisites
 
 - A Google Cloud project in **`asia-southeast1`** with billing enabled and Org Policy
-  permitting the Gemini Enterprise Agent Platform, Agent Search, AlloyDB, Model Armor,
+  permitting the Gemini Enterprise Agent Platform, Agent Search, Firestore, Model Armor,
   DLP, and Cloud Logging in that region.
 - `gcloud` authenticated: `gcloud auth application-default login`.
 - Terraform ≥ 1.7; Python 3.12; `pip install -e ".[gcp,dev]"`.
@@ -21,7 +21,7 @@ Authoritative stack and decisions: [`SPEC.md`](../SPEC.md). Architecture:
   export GOOGLE_CLOUD_PROJECT=your-sg-project
   export COMPLIANCE_PROFILE=gcp
   export COMPLIANCE_KMS_KEY="projects/$GOOGLE_CLOUD_PROJECT/locations/asia-southeast1/keyRings/.../cryptoKeys/..."
-  export COMPLIANCE_ALLOYDB_URI="projects/$GOOGLE_CLOUD_PROJECT/locations/asia-southeast1/clusters/.../instances/..."
+  export COMPLIANCE_AGENT_SEARCH_LOCATION=us   # where the data store lives: global | us | eu
   ```
 
 ---
@@ -34,15 +34,17 @@ Authoritative stack and decisions: [`SPEC.md`](../SPEC.md). Architecture:
 1. **Plan & apply infrastructure.**
    ```bash
    make tf-plan                       # review the plan
-   cd terraform && terraform apply    # provisions Agent Search, AlloyDB, KMS, log bucket (UNLOCKED), VPC-SC
+   cd infra/terraform && terraform apply   # Agent Search, Firestore, KMS, the audit bucket, and the controls the tfvars keep
    ```
    Terraform **fails fast** on an Agent Search location the service does not serve, this is the
    region guard (P-01). Do not relax it to a global endpoint; a global endpoint gives no
    residency guarantee.
 
-2. **Create the AlloyDB freshness schema.** The `corpus_freshness` table (per
-   `alloydb.table`) backs `CorpusLedgerPort`. Apply the schema migration shipped with the
-   `pipelines/` tooling against `COMPLIANCE_ALLOYDB_URI`.
+2. **The ledger needs no schema step.** On `gcp` the freshness ledger and the horizon tracker live
+   in the Firestore database `compliance-advisory-<region>`, and the apply creates it with the one
+   composite index the tracker's tenant listing needs. On `platform` (AlloyDB, with
+   `enable_alloydb = true`), create the `compliance` database once; the adapters create their
+   tables idempotently on first use.
 
 3. **Deploy the ADK agent to Agent Runtime.** Build and deploy the `reasoningEngine`
    (ex-Agent Engine) in-region; record the resource id into `COMPLIANCE_AGENT_ENGINE`
@@ -51,14 +53,14 @@ Authoritative stack and decisions: [`SPEC.md`](../SPEC.md). Architecture:
 
 4. **Seed the corpus.** Run the fetch-at-runtime pipeline once to populate Agent Search from
    `src/compliance_advisory/pipelines/sources/registry.yaml` and write initial
-   `FreshnessRecord`s (TTL = `corpus.ttl_days`, default 7 days) into the AlloyDB ledger.
+   `FreshnessRecord`s (TTL = `corpus.ttl_days`, default 7 days) into the ledger.
 
 5. **Run the eval gate.** `make eval` must pass (groundedness, citation accuracy,
    faithfulness, safety) before promotion (P-08 / `model-quality-gate`). A non-zero exit blocks the release.
 
-6. **Lock the log bucket, LAST.** Only after everything above is verified, lock the Cloud
-   Logging WORM bucket (retention `logging.retention_days = 2557`). **This is irreversible.**
-   See §3.
+6. **Lock the log bucket, LAST, if you lock it at all.** `worm_locked` has no default, so the plan
+   refuses until the tfvars state it. Apply with `false` until everything above is verified, then
+   re-apply with `true` (and `retention_days` of at least 2557). **This is irreversible.** See §3.
 
 7. **Start the API.** `make run-api` (or deploy the API container, see
    [`Dockerfile`](../Dockerfile), which installs `.[gcp]`).
@@ -93,7 +95,7 @@ endpoint; that is the failure this guard exists to catch.
 ## 3. WORM audit bucket: locking & retention
 
 - The audit sink is a Cloud Logging **locked bucket**; retention is `2557` days (~7 years),
-  set via the `logging.retention_days` Terraform variable.
+  set via the `retention_days` Terraform variable, and locked only by `worm_locked = true`.
 - **Locking is irreversible.** Once locked, the bucket and its retention cannot be deleted or
   shortened for the retention window. Lock it **last** in the deploy, only after you have
   confirmed log routing, redaction, and field shape are correct.
@@ -105,26 +107,26 @@ endpoint; that is the failure this guard exists to catch.
 ## 4. Operational notes
 
 ### Key rotation (CMEK, P-10)
-- Rotate the regional Cloud KMS key on your standard cadence. Agent Search, AlloyDB, and the
-  log bucket reference the key version; rotation re-encrypts new writes. Keep old key
+- Rotate the regional Cloud KMS key on your standard cadence. The log bucket, the Firestore
+  database (when Firestore CMEK is enabled) and AlloyDB (when enabled) reference the key version; rotation re-encrypts new writes. Keep old key
   versions enabled for the retention window so existing ciphertext (incl. WORM logs) stays
   readable.
 - Update `COMPLIANCE_KMS_KEY` only if the key *resource* changes (not on version rotation).
 
 ### Retention
-- Audit: `2557` days, enforced by the locked bucket (irreversible).
+- Audit: `retention_days`, enforced as WORM only when `worm_locked = true` (then irreversible).
 - Freshness ledger: rows are upserted in place; expired sources are refreshed, not deleted,
   so the version history is auditable. Prune only per your data-retention policy.
 
 ### Corpus refresh
 - Inline: a query that needs a stale/missing source triggers re-fetch + re-ingest before
   answering (so answers are never built on expired regulation).
-- Scheduled: a background job calls `CorpusLedgerPort.list_expired()` and refreshes expiring
-  sources out of band. **Nothing schedules it.** The GitHub Actions cron that documented this
-  never ran, because Actions were disabled organization-wide at the time, and the file was
-  removed rather than left standing as a control nobody was performing. GitHub Actions has been
-  the fleet's live CI since 2026-09-02, but this cron has not been re-added, so run it by hand at
-  least daily, or wire a Cloud Scheduler job, so most reads hit fresh data within the 7-day TTL.
+- Scheduled: the Cloud Run job `compliance-freshness-refresh` runs `pipelines.refresh_job` from
+  the API image daily at 02:00 Singapore time, started by Cloud Scheduler. `infra/terraform/scheduler.tf`
+  creates both once the deployment names the API image's digest in `corpus_refresh_image`; it
+  runs as the pipeline identity and writes the ledger the `gcp` profile binds. Without that
+  variable nothing schedules it: run it by hand at least daily so most reads hit fresh data
+  within the 7-day TTL.
 
 ### Horizon scanning
 - **What it reads:** the SAME freshness ledger the corpus refresh writes. Each record also
@@ -133,7 +135,8 @@ endpoint; that is the failure this guard exists to catch.
   inside the ingest upsert. No separate store to back up or restore.
 - **Schema migration:** both ledger adapters add the four columns idempotently on startup
   (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS` on AlloyDB, a `PRAGMA table_info` check on
-  SQLite). An existing deployment needs no manual migration; rows ingested before the
+  SQLite; a Firestore document written before the fields existed reads them as empty). An
+  existing deployment needs no manual migration; rows ingested before the
   upgrade simply have an empty diff base and report as `new_source` on the first scan.
 - **When to scan:** after each scheduled corpus refresh. `POST /horizon/scan` (or
   `compliance horizon scan <scope>`) is idempotent: change ids are content-derived, and a
@@ -146,8 +149,9 @@ endpoint; that is the failure this guard exists to catch.
   redeploy of the domain. Changing `band_thresholds` or `topic_owners` re-bands and
   re-routes future scans; already-tracked items keep their recorded owner and band until
   the next scan refreshes them (a human-set status still survives).
-- **Tracking store:** AlloyDB `horizon_tracking` on `gcp` (created idempotently beside the
-  freshness ledger), SQLite on `local`. Rows are tenant-partitioned; a cross-tenant read or
+- **Tracking store:** the Firestore `horizon_tracking` collection on `gcp` (its tenant listing
+  uses the composite index `infra/terraform/firestore.tf` declares), an AlloyDB table on
+  `platform`, SQLite on `local`. Rows are tenant-partitioned; a cross-tenant read or
   write is refused with 403.
 
 ### Kill-switch

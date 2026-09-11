@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from ...config import Settings
 from ...domain.models import FetchedDocument, IngestResult
+from ._agent_search import api_endpoint
 
 if TYPE_CHECKING:  # pragma: no cover - typing only, never imported at runtime
     from google.cloud import discoveryengine_v1
@@ -36,7 +37,7 @@ class AgentSearchIngestionAdapter:
         cfg = settings.agent_search
         self._location = cfg.location
         self._data_store_id = cfg.data_store_id
-        self._endpoint = f"{self._location}-discoveryengine.googleapis.com"
+        self._endpoint = api_endpoint(self._location)
         self._client: Any | None = None
 
     # ------------------------------------------------------------------ #

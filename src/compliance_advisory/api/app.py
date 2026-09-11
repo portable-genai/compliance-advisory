@@ -372,7 +372,7 @@ def _blocked_use_case_response(use_case: str, reason: str) -> JSONResponse:
 # --------------------------------------------------------------------------- #
 @app.get("/corpus/status", response_model=CorpusStatusResponse, tags=["corpus"])
 def corpus_status(principal: CurrentPrincipal) -> CorpusStatusResponse:
-    """Summarise the AlloyDB freshness ledger (7-day fetch-at-runtime model)."""
+    """Summarise the freshness ledger (7-day fetch-at-runtime model)."""
     container = deps.get_container()
     records = container.ledger.all()
     return CorpusStatusResponse.from_records(records, container.settings.corpus.ttl_days)

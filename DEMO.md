@@ -72,7 +72,7 @@ the UI.
 | Node.js 18.18+ and npm | for the UI | for the UI | only if you show the browser console |
 | **Playwright** (`pip install playwright` + `playwright install chromium`) | for the guided walkthrough | no | Demo A's presenter walkthrough only |
 | A GCP project and `gcloud` | no | yes | billing enabled; `asia-southeast1` available |
-| Terraform | no | yes | provisions Agent Search, AlloyDB, DLP, WORM bucket, CMEK |
+| Terraform | no | yes | provisions Agent Search, Firestore, DLP, the audit bucket, CMEK |
 | Cloud KMS key (regional) | no | yes | CMEK; set `COMPLIANCE_KMS_KEY` |
 
 Install / setup references (read these once):
@@ -225,7 +225,7 @@ pip install -e ".[gcp,dev]"                 # adds google-adk, google-genai, dis
 export GOOGLE_CLOUD_PROJECT=your-sg-project
 export COMPLIANCE_PROFILE=gcp
 export COMPLIANCE_KMS_KEY="projects/.../locations/asia-southeast1/keyRings/.../cryptoKeys/..."
-export COMPLIANCE_ALLOYDB_URI="projects/.../locations/asia-southeast1/clusters/.../instances/..."
+export COMPLIANCE_AGENT_SEARCH_LOCATION=us           # where the data store lives: global | us | eu
 gcloud auth application-default login
 ```
 

@@ -1,6 +1,6 @@
 """Local HorizonTrackerPort adapter — SQLite implementation-tracking store.
 
-The ``local`` profile's stand-in for the AlloyDB tracker: a small SQLite table holding one
+The ``local`` profile's stand-in for the managed tracker: a small SQLite table holding one
 row per assessed regulatory change, keyed by ``change_id`` and carrying the owning
 ``tenant`` as the authorization partition. Seedable, deterministic and SDK-free.
 

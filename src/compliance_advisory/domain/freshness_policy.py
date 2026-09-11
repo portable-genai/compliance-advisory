@@ -1,6 +1,6 @@
 """Corpus freshness policy — the 7-day fetch-at-runtime model (SPEC §2).
 
-Pure decision logic over the AlloyDB-backed freshness ledger. Documents live in
+Pure decision logic over the freshness ledger. Documents live in
 Agent Search; this policy decides, from a ``FreshnessRecord``, whether a source is
 stale and must be re-fetched and re-ingested before it is used to answer. The TTL is
 configurable (``CorpusSettings.ttl_days``, default 7) but defaults are baked in so the

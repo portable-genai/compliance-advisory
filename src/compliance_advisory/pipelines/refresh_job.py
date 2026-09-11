@@ -1,10 +1,11 @@
 """Entrypoint for the scheduled corpus freshness refresh job.
 
-This is the out-of-band half of the 7-day fetch-at-runtime model (SPEC §2). It is
-deployed as a **Cloud Run job** (see ``pipelines/Dockerfile``) and triggered on a
-schedule (Cloud Scheduler) more often than the TTL — e.g. daily for a 7-day TTL — so
-that by the time a read references a source it is almost always already fresh in
-**Agent Search**, with its freshness recorded in the **AlloyDB** ledger.
+This is the out-of-band half of the 7-day fetch-at-runtime model (SPEC §2). It runs as a
+**Cloud Run job** from the API image (the root ``Dockerfile``, which installs the locked
+managed extra), with this module as the command, and Cloud Scheduler starts it daily
+(``infra/terraform/scheduler.tf``), more often than the TTL, so that by the time a read
+references a source it is almost always already fresh in **Agent Search**, with its freshness
+recorded in the ledger the active profile binds (Firestore on ``gcp``).
 
 Default behaviour refreshes only sources that are expired in the ledger or not yet
 ingested (:func:`ingest.refresh_expired`). ``--full`` forces a re-ingest of the entire
@@ -68,8 +69,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="compliance-refresh-job",
         description=(
-            "Refresh the C1 regulatory corpus: re-fetch expired sources into Agent "
-            "Search and update the AlloyDB freshness ledger."
+            "Refresh the regulatory corpus: re-fetch expired sources into Agent "
+            "Search and update the freshness ledger."
         ),
     )
     parser.add_argument(

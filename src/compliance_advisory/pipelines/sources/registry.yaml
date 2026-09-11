@@ -3,7 +3,7 @@
 # Fetch-at-runtime knowledge base (SPEC §2 "Reg KB data"): the repo ships ONLY this
 # registry plus a tiny synthetic sample. At runtime the pipelines download each public
 # document, redact defensively (P-04), ingest it into Agent Search, and record freshness
-# in the AlloyDB ledger with a 7-day TTL (corpus.ttl_days).
+# in the freshness ledger with a 7-day TTL (corpus.ttl_days).
 #
 # Each entry is a RegSource (see domain/models.py): id, regulator, jurisdiction, title,
 # url, doc_type, version, published_date, topics. URLs are the regulators' own public

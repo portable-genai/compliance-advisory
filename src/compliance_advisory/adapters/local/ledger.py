@@ -1,6 +1,6 @@
 """Local corpus-freshness ledger adapter (CorpusLedgerPort) — SQLite store.
 
-The ``local`` profile's stand-in for the **AlloyDB** freshness ledger: a small SQLite
+The ``local`` profile's stand-in for the managed freshness ledger: a small SQLite
 table tracking when each source was fetched and when it expires (the 7-day TTL model),
 seedable and deterministic. When the Firestore emulator is opted in
 (``FIRESTORE_EMULATOR_HOST`` set AND the client lib imports), the adapter routes to it;

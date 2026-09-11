@@ -1,4 +1,8 @@
-"""AlloyDB HorizonTrackerPort adapter — the implementation journey for assessed changes.
+"""AlloyDB HorizonTrackerPort adapter: the implementation journey for assessed changes.
+
+Bound under the ``platform`` profile. The ``gcp`` profile binds
+:mod:`.firestore_horizon_tracker`, and ``infra/terraform/alloydb.tf`` creates this adapter's
+cluster only when a deployment sets ``enable_alloydb``.
 
 Implements :class:`~compliance_advisory.ports.horizon.HorizonTrackerPort` against
 **AlloyDB for PostgreSQL**, alongside the freshness ledger it shares a database with, so

@@ -1,7 +1,7 @@
 """On-prem placeholder for ``CorpusLedgerPort`` — the Google Distributed Cloud target.
 
 One of the reversibility (P-02, P-12) migration placeholders: in the managed profile
-this port binds to the AlloyDB freshness-ledger adapter; switching ``profile`` to
+this port binds to the Firestore freshness-ledger adapter; switching ``profile`` to
 ``onprem`` rebinds it here. The adapter constructs cleanly with **no external
 dependencies** and structurally satisfies the same Protocol as the managed adapter, so
 the contract tests prove interface parity. Porting the 7-day freshness ledger to an

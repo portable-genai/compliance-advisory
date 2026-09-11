@@ -1,6 +1,7 @@
 """Corpus ports — the 7-day fetch-at-runtime freshness model.
 
-Documents live in **Agent Search**; the freshness ledger lives in **AlloyDB**.
+Documents live in **Agent Search**; the freshness ledger lives in the store the profile binds
+(Firestore on ``gcp``, AlloyDB on ``platform``).
 On a read, fresh sources (< TTL) are served from the store; expired sources are
 re-fetched and re-ingested before answering. A scheduled job refreshes expiring
 sources out of band.
