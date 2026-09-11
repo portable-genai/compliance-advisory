@@ -334,6 +334,11 @@ export default function Page() {
   );
 }
 
+// A plain <img> is not rewritten by Next's basePath, so the console mounted under a
+// reverse-proxy sub-path (/apps/compliance-advisory behind the portal) asked the PORTAL's root
+// for /logo.jpg. The base path is inlined at build time, like the router's own prefix.
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 function TopBar({ health }: { health: "checking" | "up" | "down" }) {
   const tone =
     health === "up"
@@ -347,7 +352,7 @@ function TopBar({ health }: { health: "checking" | "up" | "down" }) {
     <header className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-200 bg-white px-4 py-2.5">
       <div className="flex items-center gap-2.5">
         <img
-          src="/logo.jpg"
+          src={`${BASE_PATH}/logo.jpg`}
           alt=""
           width={32}
           height={32}
