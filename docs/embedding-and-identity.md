@@ -202,6 +202,8 @@ methods pinned to `GET, POST, OPTIONS` and headers to
 |------|-------|---------|---------|
 | `COMPLIANCE_PROFILE` | backend env | `local` | Adapter family: `local`, `gcp`, `platform`, `onprem`. Binds the identity adapter too. |
 | `COMPLIANCE_IAP_AUDIENCE` | backend env | empty | Expected IAP JWT audience; required in gcp/platform profiles. |
+| `COMPLIANCE_IAP_TENANT_DOMAINS_JSON` | backend env | unset | Reviewed hosted domain to tenant map, e.g. `{"bank.example":"reference-bank"}`. Unset keeps the hosted domain as the tenant, which is what a single-organisation installation wants. A mapped domain wins over that. Set-and-empty is refused. |
+| `COMPLIANCE_IAP_MACHINE_TENANTS_JSON` | backend env | unset | Reviewed service-account ADDRESS to tenant map, e.g. `{"caller@project.iam.gserviceaccount.com":"reference-bank"}`. **A machine caller has no tenant without it**, and therefore no access to anything tenant-scoped. Exact addresses only: every account in a project shares one domain, so a domain key would admit unrelated machines. Set-and-empty is refused. |
 | `COMPLIANCE_CORS_ORIGINS` | backend env | unset: the localhost dev origins under a deliberate `local` profile, nothing otherwise | Comma-separated browser-origin allowlist for cross-origin API calls. Never `*`. Set and empty trusts no origin at all. |
 | `COMPLIANCE_FRAME_ANCESTORS` | backend env | unset: `'self'` | CSP `frame-ancestors` allowlist: which parent origins may iframe the assistant. Set and empty resolves to `'none'`, so nobody may frame it. |
 | `NEXT_PUBLIC_API_BASE` | UI build env | `http://localhost:8000` | Backend base URL (use `/assistant/api` behind a reverse proxy, `:8080` in dev). |
@@ -209,6 +211,27 @@ methods pinned to `GET, POST, OPTIONS` and headers to
 | `NEXT_PUBLIC_EMBED` | UI build env | unset | `1` renders the console without its own chrome. |
 | `NEXT_PUBLIC_FRAME_ANCESTORS` | UI runtime env | unset: `'self'` | CSP `frame-ancestors` for the console DOCUMENT (the API knob above covers API responses). Three-state, mirroring `COMPLIANCE_FRAME_ANCESTORS`: set and empty resolves to `'none'`. Read per request in `ui/proxy.ts`, so it is a deploy-time value, not baked into the build. |
 | `X-Dev-Persona` | request header | unset | Local profile only: selects a seeded persona. Ignored by secure profiles. |
+
+### 3.1 A service calling this service
+
+A human and a machine are resolved differently on purpose, and the difference is not a detail
+this deployment can skip.
+
+A human's tenant comes from the `hd` claim of their IAP assertion, so a single-organisation
+installation needs no map at all. A MACHINE caller's tenant comes only from
+`COMPLIANCE_IAP_MACHINE_TENANTS_JSON`, keyed on its exact address, because every service account
+in a project shares one domain and keying tenancy on that would put unrelated machines into one
+tenant.
+
+So a deployment that maps nothing serves browsers correctly and refuses every service caller,
+with a 401 that names authentication rather than entitlement. This service was deployed in that
+state on 2026-09-12 and the refusal was invisible to a browser walkthrough. If another service
+calls this one, its runtime service account has to be in that map, and the value is a reviewed
+deployment input like the audience beside it.
+
+What a mapped machine caller may then do is exactly what its tenant allows, and nothing more: the
+regulatory corpus is public material and the read paths serve it, while anything that writes to
+the corpus or reads another tenant's material is refused by the same authorization a human faces.
 
 ## 4. Client integration checklist
 

@@ -45,7 +45,7 @@ from hex_service_kit.federation import (
     principal_from_iap_claims,
 )
 
-from compliance_advisory.adapters.gcp.iap_identity import _FEDERATION_POLICY, IapIdentityAdapter
+from compliance_advisory.adapters.gcp.iap_identity import IapIdentityAdapter, _federation_policy
 from compliance_advisory.domain.identity import IdentityError, RequestContext
 
 _AUDIENCE = "/projects/1234567890/global/backendServices/42"
@@ -143,7 +143,7 @@ def test_the_claim_half_is_the_commons_decision_and_not_a_local_copy(
     assert _fields(_resolve(claims)) == _fields(
         principal_from_iap_claims(
             claims,
-            _FEDERATION_POLICY,
+            _federation_policy(),
             source="gcp-iap",
             include_subject_principal=True,
         )
@@ -192,13 +192,14 @@ def test_the_hosted_domain_passthrough_is_an_opt_in_this_deployment_made() -> No
     deployment has no reviewed domain map: an unmapped domain must therefore get its tenant
     from the opt-in or from nothing.
     """
-    assert _FEDERATION_POLICY.tenant_from_hosted_domain is True
-    assert dict(_FEDERATION_POLICY.domain_tenants) == {}
-    assert dict(_FEDERATION_POLICY.domain_groups) == {}
+    policy = _federation_policy()
+    assert policy.tenant_from_hosted_domain is True
+    assert dict(policy.domain_tenants) == {}
+    assert dict(policy.domain_groups) == {}
 
     without = FederationPolicy()
     assert without.tenant_for("example-bank.test", email_domain="example-bank.test") == ""
-    assert _FEDERATION_POLICY.tenant_for("example-bank.test") == "example-bank.test"
+    assert policy.tenant_for("example-bank.test") == "example-bank.test"
 
     # The tenant a verified user actually receives, which is the half an attribute assertion
     # cannot see. The comparison test above evaluates BOTH sides under this same policy, so it
@@ -230,3 +231,87 @@ def test_a_verified_assertion_that_names_nobody_is_refused() -> None:
     object.__setattr__(adapter, "_refuse_unpinned_claims", lambda claims: None)
     with pytest.raises(IdentityError):
         _resolve(_claims(sub="   "), adapter)
+
+
+# --------------------------------------------------------------------------------------- #
+# The machine caller: the half this deployment shipped without, and the half its first
+# consumer needs.
+# --------------------------------------------------------------------------------------- #
+#
+# Found by execution on 2026-09-12, hours after this service was deployed as an embedded app.
+# Its console answered, a route needing no identity answered 200 through the portal's proxy, and
+# every route taking a principal answered 401 to a SERVICE ACCOUNT. A human in the deployment's
+# own Cloud Identity domain would have resolved through `hd` and seen nothing wrong, so the
+# defect was invisible to a browser walkthrough and total for machine callers.
+#
+# The cause is the kit's rule, working as designed: a machine caller's tenant comes only from an
+# exact-address map, never from a domain, because every service account in a project shares one
+# and keying tenancy on it would put unrelated machines in a single tenant. With no map at all,
+# that rule resolves no tenant and the request is refused. The first consumer of this service is
+# another application calling `/ask` as its own runtime identity through the same edge.
+_MACHINE = "journey-a-cdd-so-604cef@portable-genai-sg.iam.gserviceaccount.com"
+_MACHINE_CLAIMS = {"email": _MACHINE, "hd": None, "sub": f"accounts.google.com:{_MACHINE}"}
+
+
+def test_an_unmapped_machine_caller_is_still_refused_a_tenant(monkeypatch: Any) -> None:
+    """Unset maps nobody, which is the right default for a browser-only installation.
+
+    This is the state the service was deployed in, asserted rather than remembered: the caller
+    verifies, and resolves to no tenant, which every tenant-scoped read refuses.
+    """
+    monkeypatch.delenv("COMPLIANCE_IAP_MACHINE_TENANTS_JSON", raising=False)
+    monkeypatch.delenv("COMPLIANCE_IAP_TENANT_DOMAINS_JSON", raising=False)
+    assert _resolve(_claims(**_MACHINE_CLAIMS)).tenant == ""
+
+
+def test_a_mapped_machine_caller_resolves_to_the_tenant_it_was_given(monkeypatch: Any) -> None:
+    """An exact address, reviewed by the deployment, is the only thing that admits a machine."""
+    monkeypatch.setenv(
+        "COMPLIANCE_IAP_MACHINE_TENANTS_JSON", _json.dumps({_MACHINE: "reference-bank"})
+    )
+    principal = _resolve(_claims(**_MACHINE_CLAIMS))
+    assert principal.tenant == "reference-bank"
+
+
+def test_a_machine_address_the_map_does_not_name_stays_refused(monkeypatch: Any) -> None:
+    """A map admits what it names and nothing adjacent: not the domain, not a sibling account."""
+    monkeypatch.setenv(
+        "COMPLIANCE_IAP_MACHINE_TENANTS_JSON",
+        _json.dumps({"someone-else@portable-genai-sg.iam.gserviceaccount.com": "reference-bank"}),
+    )
+    assert _resolve(_claims(**_MACHINE_CLAIMS)).tenant == ""
+
+
+def test_an_emptied_map_is_refused_rather_than_read_as_mapping_nobody(monkeypatch: Any) -> None:
+    """Three states, never two. An emptied variable looks configured and names nothing.
+
+    Treated as unset, a deployment that meant to map its callers and blanked the value would get
+    a service that refuses every machine caller while its configuration says otherwise.
+    """
+    monkeypatch.setenv("COMPLIANCE_IAP_MACHINE_TENANTS_JSON", "")
+    with pytest.raises(ValueError, match="COMPLIANCE_IAP_MACHINE_TENANTS_JSON"):
+        _federation_policy()
+
+
+def test_a_wildcard_key_is_refused_because_nobody_reviewed_what_it_admits(
+    monkeypatch: Any,
+) -> None:
+    monkeypatch.setenv("COMPLIANCE_IAP_MACHINE_TENANTS_JSON", _json.dumps({"*": "reference-bank"}))
+    with pytest.raises(ValueError, match="name each domain or account exactly"):
+        _federation_policy()
+
+
+def test_a_mapped_domain_wins_over_the_hosted_domain_passthrough(monkeypatch: Any) -> None:
+    """The human half keeps working, and a reviewed domain map overrides the opt-in."""
+    monkeypatch.setenv(
+        "COMPLIANCE_IAP_TENANT_DOMAINS_JSON", _json.dumps({"example-bank.test": "reference-bank"})
+    )
+    assert _resolve(_claims()).tenant == "reference-bank"
+
+
+def test_an_unmapped_domain_still_falls_back_to_its_hosted_domain(monkeypatch: Any) -> None:
+    """Unchanged behaviour for every installation that maps no domain, which is the default."""
+    monkeypatch.setenv(
+        "COMPLIANCE_IAP_TENANT_DOMAINS_JSON", _json.dumps({"other-bank.test": "other"})
+    )
+    assert _resolve(_claims()).tenant == "example-bank.test"
