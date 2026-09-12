@@ -14,6 +14,7 @@ images, and this stack supplies what they call.
 | PII redaction | DLP inspect and de-identify templates | `dlp.tf` |
 | Audit | Cloud Logging bucket and sink; the project audit config | `logging_worm.tf` |
 | Scheduled corpus refresh | Cloud Run job and Cloud Scheduler trigger, when `corpus_refresh_image` is set | `scheduler.tf` |
+| Image registry | Regional Docker repository `compliance-advisory`, CMEK-encrypted, immutable tags, pull access for every identity that runs a container | `artifact_registry.tf` |
 | CMEK | One regional key ring and key, one grant per service agent | `kms.tf` |
 | Identities | Serving, pipeline and agent-runtime service accounts; grants for an embedding host's identity | `iam.tf`, `agent_runtime.tf` |
 | Residency guardrails | Org Policies, VPC-SC perimeter | `org_policy.tf`, `vpc_sc.tf` |
@@ -40,7 +41,9 @@ declines one says so in its own tfvars. A control that cannot be undone never ar
 | `cloud_run_deletion_protection` | `true` | `false` for a destroyable stack |
 
 [`tests/posture.tftest.hcl`](tests/posture.tftest.hcl) proves each row at plan against mock
-providers, including that an unstated lock refuses to plan: `make tf-test`.
+providers, including that an unstated lock refuses to plan, and
+[`tests/image_registry.tftest.hcl`](tests/image_registry.tftest.hcl) proves the registry's
+residency, key, tag immutability and pull access the same way: `make tf-test`.
 
 ## Idle cost
 
@@ -62,9 +65,11 @@ terraform apply
 Beside an embedding host, in two passes, because the host mints the API's runtime identity:
 
 1. Apply this stack with `additional_serving_service_accounts = []`.
-2. Build and push both images: the API from the root `Dockerfile`, the console from
-   `ui/Dockerfile` with `NEXT_PUBLIC_BASE_PATH=/apps/compliance-advisory` and
-   `NEXT_PUBLIC_API_BASE=/apps/compliance-advisory/api`.
+2. Build and push both images to the `image_registry` output's path, the API as `api` and the
+   console as `ui`: the API from the root `Dockerfile`, the console from `ui/Dockerfile` with
+   `NEXT_PUBLIC_BASE_PATH=/apps/compliance-advisory` and
+   `NEXT_PUBLIC_API_BASE=/apps/compliance-advisory/api`. Step 1 creates that repository, so this
+   step cannot run before it.
 3. Apply the host, which creates the Cloud Run services and their identities.
 4. Apply this stack again with the host's API identity in `additional_serving_service_accounts`,
    and the API image digest in `corpus_refresh_image` to schedule the corpus refresh. Without
