@@ -49,12 +49,38 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# A digest pin freezes the base image, which means it also freezes its unpatched packages.
+# Reproducible and vulnerable are not opposites, and the pin quietly guarantees the second while
+# being cited as evidence of the first. Without this line the promotion scan reported 30 fixable
+# HIGH from the Debian 13.6 base alone, most of them the util-linux family (bsdutils, libblkid1,
+# libmount1, mount, util-linux: CVE-2026-53612/53613/53614) plus openssl. Debian security updates
+# are applied on top so the image is both reproducible and patched.
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
+
 # Non-root runtime user.
 RUN useradd --create-home --uid 10001 appuser
 
 COPY --from=builder /opt/venv /opt/venv
 COPY src ./src
 COPY config ./config
+
+# Remove pip from the RUNTIME image, in both the system prefix and the venv.
+#
+# Two reasons, and the second is the one that showed up in the scan. First, a serving container
+# installs nothing, so shipping a package manager in it adds an install capability an attacker can
+# use and the application never can. Second, pip VENDORS its dependencies -- msgpack and setuptools
+# live inside pip/_vendor, pinned in pip/_vendor/vendor.txt -- so a scanner reports pip's bundled
+# copies as installed packages. That is where BOTH Python findings came from (msgpack 1.1.2,
+# GHSA-6v7p-g79w-8964; setuptools 70.3.0, CVE-2025-47273). Neither is a dependency of this
+# application, neither appears in requirements-gcp.lock or requirements-dev.lock, and no lock move
+# could reach them, because they were never resolved: they arrived inside pip itself.
+RUN rm -rf /usr/local/lib/python3.14/site-packages/pip \
+           /usr/local/lib/python3.14/site-packages/pip-*.dist-info \
+           /opt/venv/lib/python3.14/site-packages/pip \
+           /opt/venv/lib/python3.14/site-packages/pip-*.dist-info \
+           /usr/local/bin/pip /usr/local/bin/pip3 /opt/venv/bin/pip /opt/venv/bin/pip3
 
 USER appuser
 EXPOSE 8080

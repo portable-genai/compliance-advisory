@@ -14,6 +14,10 @@ API_APP     := compliance_advisory.api.app:app
 API_HOST    ?= 127.0.0.1  # no-auth local dev binds loopback; override deliberately
 API_PORT    ?= 8080
 UI_DIR      := ui
+# The prefix and API base the portal mounts the console under. Both are BUILD-time inputs to
+# Next.js, so they are the shape `ui-check` has to build a second time, not a runtime setting.
+UI_BASE_PATH ?= /apps/compliance-advisory
+UI_API_BASE  ?= /apps/compliance-advisory/api
 TF_DIR      := infra/terraform
 
 export COMPLIANCE_PROFILE := $(PROFILE)
@@ -68,11 +72,22 @@ check: lint test eval evals-doc-check portability demo-selftest tf-validate tf-t
 ui-install: ## Install the console's locked dependencies (proves package-lock.json is valid).
 	npm ci --prefix $(UI_DIR)
 
-ui-check: ## Console gate: types, policy unit tests, build, then HYDRATION against the built server.
+# Built TWICE, because the base path is a BUILD-time input to Next.js and the two builds are
+# different artefacts. The default shape is what a standalone deploy serves; the second is what the
+# image the portal runs actually ships. Only the first used to be built here, and it passed on the
+# very commit whose `docker build ui --build-arg NEXT_PUBLIC_BASE_PATH=/apps/compliance-advisory`
+# failed six CSP assertions, so a green ui-check said nothing about the console being deployed.
+# The embedded build runs last and is the state .next is left in: that is the shipped one, and
+# `make run-ui` uses the dev server rather than this output.
+ui-check: ## Console gate: types, policy tests, then build + HYDRATION in both the default and the embedded shape.
 	npm --prefix $(UI_DIR) run lint
 	npm --prefix $(UI_DIR) test
 	NEXT_TELEMETRY_DISABLED=1 npm --prefix $(UI_DIR) run build
 	npm --prefix $(UI_DIR) run assert-hydratable
+	NEXT_TELEMETRY_DISABLED=1 NEXT_PUBLIC_BASE_PATH=$(UI_BASE_PATH) NEXT_PUBLIC_API_BASE=$(UI_API_BASE) \
+		npm --prefix $(UI_DIR) run build
+	NEXT_PUBLIC_BASE_PATH=$(UI_BASE_PATH) NEXT_PUBLIC_API_BASE=$(UI_API_BASE) \
+		npm --prefix $(UI_DIR) run assert-hydratable
 
 smoke-local: ## End-to-end offline smoke: answer a question under the local profile.
 	COMPLIANCE_PROFILE=local compliance ask \

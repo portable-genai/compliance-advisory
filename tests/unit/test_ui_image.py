@@ -67,3 +67,71 @@ def test_the_runtime_image_runs_as_a_non_root_user_without_a_package_manager() -
     runtime = _dockerfile()[_dockerfile().index("AS runtime") :]
     assert re.search(r"^USER\s+(?!root\b)\S+", runtime, flags=re.MULTILINE)
     assert "/usr/local/bin/npm" in runtime
+
+
+def _make_recipe(target: str) -> list[str]:
+    """The shell lines of one Makefile target, with backslash continuations joined.
+
+    Read from the Makefile rather than by running it, because the point is the SHAPE the gate
+    builds, and running it is what the gate itself does.
+    """
+    lines = (REPO_ROOT / "Makefile").read_text(encoding="utf-8").splitlines()
+    start = next(
+        (index for index, line in enumerate(lines) if line.startswith(f"{target}:")),
+        None,
+    )
+    assert start is not None, f"the Makefile has no {target} target, so nothing was checked"
+    recipe: list[str] = []
+    for line in lines[start + 1 :]:
+        if not line.startswith("\t"):
+            break
+        body = line[1:].rstrip()
+        if recipe and recipe[-1].endswith("\\"):
+            recipe[-1] = recipe[-1][:-1].rstrip() + " " + body.lstrip()
+        else:
+            recipe.append(body)
+    assert recipe, f"the {target} target has no recipe"
+    return recipe
+
+
+def test_ui_check_builds_and_probes_the_shape_the_image_ships() -> None:
+    """The gate must build the EMBEDDED console, not only the default one.
+
+    The base path is a build-time input, so the two builds are different artefacts and a green
+    default build says nothing about the one the portal runs. It said nothing loudly: `make
+    ui-check` passed on the very commit whose `docker build ui --build-arg
+    NEXT_PUBLIC_BASE_PATH=/apps/compliance-advisory` failed six CSP assertions, because
+    `assert-hydratable` was probing `/`, a route a base-path build does not serve.
+    """
+    recipe = _make_recipe("ui-check")
+    builds = [line for line in recipe if "run build" in line]
+    probes = [line for line in recipe if "assert-hydratable" in line]
+    assert len(builds) >= 2, (
+        "ui-check builds the console once, so only one of the two shipped shapes is proved"
+    )
+    assert any("NEXT_PUBLIC_BASE_PATH=$(UI_BASE_PATH)" in line for line in builds), (
+        "no build in ui-check sets a base path: the embedded console is never built"
+    )
+    assert any("NEXT_PUBLIC_BASE_PATH=$(UI_BASE_PATH)" in line for line in probes), (
+        "the embedded build is never probed, so its CSP and nonce are unchecked"
+    )
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    assert re.search(r"^UI_BASE_PATH \?= /\S+", makefile, flags=re.MULTILINE), (
+        "UI_BASE_PATH must default to a real sub-path, or the second build repeats the first"
+    )
+
+
+def test_the_hydration_probe_follows_the_base_path() -> None:
+    """`assert-hydratable` must ask for the document the built console actually serves.
+
+    Probing `/` on a base-path build gets a 404, and Next 308s the base path with a trailing slash
+    to the one without. Neither response carries a CSP, so the script reported five absent
+    directives and a missing nonce: six failures, none of them the defect it exists to catch.
+    """
+    script = (UI / "scripts" / "assert-hydratable.mjs").read_text(encoding="utf-8")
+    assert "NEXT_PUBLIC_BASE_PATH" in script, (
+        "the probe ignores the base path, so it cannot check an embedded build"
+    )
+    assert "http://127.0.0.1:${port}${basePath}" in script, (
+        "the probed URL must carry the base path the build was given"
+    )
