@@ -44,6 +44,18 @@ resource "google_discovery_engine_data_store" "reg_kb" {
   content_config    = "CONTENT_REQUIRED" # PDFs of regulatory documents
   solution_types    = ["SOLUTION_TYPE_SEARCH"]
 
+  # The API attaches a default document_processing_config to every content store at create time.
+  # Leaving it undeclared makes a later plan read that server-added block as a REMOVAL, and
+  # removing it FORCES REPLACEMENT of the store, destroying the indexed corpus with it. Observed
+  # on 2026-09-12 against the live store this stack had just created: the next plan, for an
+  # unrelated registry addition, reported `must be replaced`. `cdd-sow-research` carries the same
+  # declaration for the same reason, found the same way on 2026-08-28.
+  document_processing_config {
+    default_parsing_config {
+      digital_parsing_config {}
+    }
+  }
+
   # Fail-fast guard: refuse a location Agent Search does not serve, so an unsupported value
   # fails at PLAN with this service named, rather than at apply with an opaque API rejection
   # or at the first live call with a hostname that does not resolve.
