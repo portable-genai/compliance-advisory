@@ -36,6 +36,16 @@ output "firestore_database" {
   value       = google_firestore_database.compliance.name
 }
 
+# ---------------------------- Artifact Registry ----------------------------- #
+output "image_registry" {
+  description = <<-EOT
+    The Docker repository both images are pushed to, as the prefix a tag or a digest is appended
+    to: `<region>-docker.pkg.dev/<project>/compliance-advisory`. The API is `.../api`, the console
+    `.../ui`, and `corpus_refresh_image` names a digest under `.../api`.
+  EOT
+  value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.images.repository_id}"
+}
+
 # --------------------------------- KMS -------------------------------------- #
 output "kms_key" {
   description = "Regional CMEK crypto key id (settings.yaml kms_key / COMPLIANCE_KMS_KEY)."

@@ -20,6 +20,7 @@ locals {
       "cloudtrace.googleapis.com",           # Cloud Trace (OpenTelemetry spans)
       "firestore.googleapis.com",            # Freshness ledger + horizon tracker (gcp profile)
       "cloudscheduler.googleapis.com",       # Corpus freshness refresh trigger
+      "artifactregistry.googleapis.com",     # Promoted image registry (artifact_registry.tf)
       "run.googleapis.com",                  # Cloud Run refresh job
       "secretmanager.googleapis.com",        # App secrets (no secrets in code, P-04)
       "cloudkms.googleapis.com",             # Regional CMEK key ring (P-09)

@@ -49,5 +49,7 @@ enable_posture_feed = true
 additional_serving_service_accounts = []
 
 # The reviewed API image digest, for the daily corpus refresh job; "" for no scheduled refresh.
+# It lives in the repository this stack creates, so the value is the `image_registry` output plus
+# `/api@sha256:<digest>`: <region>-docker.pkg.dev/<project>/compliance-advisory/api@sha256:...
 corpus_refresh_image          = ""
 cloud_run_deletion_protection = true
