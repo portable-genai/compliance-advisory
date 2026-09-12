@@ -12,6 +12,7 @@ import them, and the verified assertion is never logged.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from hex_service_kit.assertion import require_claims, require_pinned_algorithm
@@ -60,7 +61,73 @@ _REQUIRED_CLAIMS = ("iss", "sub", "email", "exp")
 #: tenant at all: fail-closed, but closed for every verified user, and an offline gate would
 #: not notice, because the local profile never constructs this adapter. Writing the choice
 #: down is what makes it readable and testable; a silent fallback would be neither.
-_FEDERATION_POLICY = FederationPolicy(tenant_from_hosted_domain=True)
+#: A MACHINE caller is resolved only against an exact-address map, never from a domain, because
+#: every service account in a project shares one and keying tenancy on it would put unrelated
+#: machines in a single tenant. That is the kit's rule, and with no map at all it means a
+#: service account arrives with NO tenant and is refused. This service was deployed on
+#: 2026-09-12 in exactly that state: its console answered, a route needing no identity answered,
+#: and every machine caller got a 401, while a human in the deployment's own Cloud Identity
+#: domain resolved through `hd` and saw nothing wrong. The first consumer is another service,
+#: calling as its own runtime identity through the same edge, so "looks healthy in a browser"
+#: was the worst possible shape for this defect to take.
+_IAP_TENANT_DOMAINS_ENV = "COMPLIANCE_IAP_TENANT_DOMAINS_JSON"
+_IAP_MACHINE_TENANTS_ENV = "COMPLIANCE_IAP_MACHINE_TENANTS_JSON"
+
+
+def _reviewed_object(name: str) -> dict[str, Any]:
+    """One reviewed JSON object, keys lower-cased; ``{}`` only when the variable is UNSET.
+
+    Three states, never two: unset maps nobody, which is what this service shipped with and is
+    still the right default for an installation that serves browsers only; set-and-empty is
+    REFUSED, because an emptied map names nothing and would otherwise read as "map nobody" while
+    looking configured; set is the only source of tenancy for the callers it names.
+    """
+    setting = read_env_setting(name)
+    if setting.is_configured_empty:
+        raise ValueError(
+            f"{name} is set to an empty value, which names no mapping. Unset it to map "
+            "nothing, or provide a JSON object."
+        )
+    if setting.is_unset:
+        return {}
+    try:
+        parsed = json.loads(setting.value)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{name} must contain a JSON object") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError(f"{name} must contain a JSON object")
+    cleaned: dict[str, Any] = {}
+    for key, value in parsed.items():
+        normalised = str(key).strip().lower()
+        if not normalised or "*" in normalised:
+            raise ValueError(
+                f"{name} contains the key {key!r}; name each domain or account exactly, "
+                "because a blank or wildcard key maps callers nobody reviewed"
+            )
+        cleaned[normalised] = value
+    return cleaned
+
+
+def _tenant_map(name: str) -> dict[str, str]:
+    tenants: dict[str, str] = {}
+    for key, tenant in _reviewed_object(name).items():
+        if not isinstance(tenant, str) or not tenant.strip():
+            raise ValueError(f"{name}[{key!r}] must be a non-empty tenant id")
+        tenants[key] = tenant.strip()
+    return tenants
+
+
+def _federation_policy() -> FederationPolicy:
+    """Rebuilt on every resolution, so a malformed map refuses by NAMING its variable.
+
+    Read once at import instead, a bad map would either crash the process at start with no
+    request to blame or, worse, be read before the deployment's environment was complete.
+    """
+    return FederationPolicy(
+        tenant_from_hosted_domain=True,
+        domain_tenants=_tenant_map(_IAP_TENANT_DOMAINS_ENV),
+        machine_tenants=_tenant_map(_IAP_MACHINE_TENANTS_ENV),
+    )
 
 
 _VERIFIER_UNAVAILABLE = (
@@ -167,7 +234,7 @@ class IapIdentityAdapter:
         try:
             resolved = principal_from_iap_claims(
                 claims,
-                _FEDERATION_POLICY,
+                _federation_policy(),
                 source="gcp-iap",
                 include_subject_principal=True,
             )
