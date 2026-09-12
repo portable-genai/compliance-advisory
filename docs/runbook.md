@@ -106,6 +106,15 @@ endpoint; that is the failure this guard exists to catch.
 
 ## 4. Operational notes
 
+### Identity refusals: reading the status
+
+| Symptom | Cause | Action |
+|---|---|---|
+| `401 {"detail":"authentication required"}` on every route taking a principal, while `/healthz`, `/personas` and the agent card answer 200 through the same proxy | The assertion is not arriving under a name this service reads. Behind an embedding host the serverless frontend strips the reserved `x-goog-*` namespace, so the host's copy of `x-goog-iap-jwt-assertion` never reaches the container and the forwarded `x-portal-iap-assertion` is the only name left | This service reads both (`docs/embedding-and-identity.md` 3.2). If the symptom persists, the deployed IMAGE predates that fix: check the running revision's image digest BEFORE changing configuration, because the audience and the reviewed maps are not the cause and editing them will not help. |
+| `403` naming the caller, not `401` | The caller authenticated and this deployment admits them nothing: an allowlist that does not name them, or a tenant the reviewed maps decline to resolve | Add the exact address to `COMPLIANCE_IAP_MACHINE_TENANTS_JSON`, or the sign-in domain to `COMPLIANCE_IAP_TENANT_DOMAINS_JSON`. No credential change helps; see `docs/embedding-and-identity.md` 3.3. |
+| A service caller gets `200` and an empty result set | It authenticated and resolved to an EMPTY tenant, which every tenant-scoped read fails closed on. An invisible row is indistinguishable from an empty dataset | Map its exact address in `COMPLIANCE_IAP_MACHINE_TENANTS_JSON`. A machine carries no `hd`, so no domain rule can give it a tenant. |
+| `503` naming a variable | Nobody can authenticate here: `COMPLIANCE_IAP_AUDIENCE` unset or set-and-empty, or `google-auth` absent from the image | Set the variable to the IAP-protected resource path, or deploy the image built with the `[gcp]` extra. |
+
 ### Key rotation (CMEK, P-10)
 - Rotate the regional Cloud KMS key on your standard cadence. The log bucket, the Firestore
   database (when Firestore CMEK is enabled) and AlloyDB (when enabled) reference the key version; rotation re-encrypts new writes. Keep old key

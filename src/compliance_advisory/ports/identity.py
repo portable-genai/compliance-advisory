@@ -84,3 +84,31 @@ class EndUserAuthUnavailableError(IdentityError):
     #: The status the API answers with. 401 is right where a caller could have authenticated
     #: and did not; a subclass meaning "nobody can, here" says so with a different code.
     http_status: int = 401
+
+
+class AuthorizationRefusedError(IdentityError):
+    """The caller AUTHENTICATED, and this deployment admits them nothing (maps to HTTP 403).
+
+    The third thing a refusal can mean, and the one that had no way to be said. A plain
+    :class:`IdentityError` means "this caller did not authenticate";
+    :class:`EndUserAuthUnavailableError` means "nobody can authenticate here". This means the
+    assertion was verified, the actor is known, and a reviewed decision this deployment wrote
+    down declines to admit them: an allowlist that does not name them, or a tenant the maps do
+    not resolve and the deployment asked to be told about.
+
+    It exists because answering 401 "authentication required" to that caller is FALSE, and
+    expensively so. On 2026-09-12 this service answered exactly that through the portal's IAP
+    edge to a caller IAP had authenticated one hop earlier, and the sentence sent the
+    investigation at the credential, the edge and the audience in turn. The status is the only
+    part of a refusal a machine caller can act on, and 401 tells it to retry with a better
+    credential, which can never succeed. The first consumer of this service is another
+    application calling it as its own runtime identity, so that is the population the wrong
+    status misdirects.
+
+    The message is the REASON, not a reassurance: it names the caller and what would admit
+    them, because the fix is a reviewed map in the deployment and not anything the caller holds.
+    """
+
+    #: 403: authenticated, and not entitled here. Never 401, which invites a retry that cannot
+    #: work, and never 404, which would hide a configuration error behind a missing resource.
+    http_status: int = 403

@@ -238,17 +238,22 @@ def test_a_verified_assertion_that_names_nobody_is_refused() -> None:
 # consumer needs.
 # --------------------------------------------------------------------------------------- #
 #
-# Found by execution on 2026-09-12, hours after this service was deployed as an embedded app.
-# Its console answered, a route needing no identity answered 200 through the portal's proxy, and
-# every route taking a principal answered 401 to a SERVICE ACCOUNT. A human in the deployment's
-# own Cloud Identity domain would have resolved through `hd` and seen nothing wrong, so the
-# defect was invisible to a browser walkthrough and total for machine callers.
+# Found by execution on 2026-09-12, hours after this service was deployed as an embedded app: a
+# machine caller resolved to NO tenant, because a machine's tenant comes only from an
+# exact-address map, never from a domain (every service account in a project shares one, and
+# keying tenancy on it would put unrelated machines in a single tenant). With no map at all that
+# rule leaves the caller with an empty tenant, which every tenant-scoped read fails closed on.
+# The first consumer of this service is another application calling `/ask` as its own runtime
+# identity through the same edge, so the map below is what admits it.
 #
-# The cause is the kit's rule, working as designed: a machine caller's tenant comes only from an
-# exact-address map, never from a domain, because every service account in a project shares one
-# and keying tenancy on it would put unrelated machines in a single tenant. With no map at all,
-# that rule resolves no tenant and the request is refused. The first consumer of this service is
-# another application calling `/ask` as its own runtime identity through the same edge.
+# CORRECTED 2026-09-12. The original version of this comment called the missing map the cause of
+# the 401 that service answered, and said a human would have "resolved through `hd` and seen
+# nothing wrong". Neither is true, and the tests in this file are why the mistake was easy to
+# make: they hand the adapter its assertion under `IAP_ASSERTION_HEADER`, and that header never
+# reaches an embedded application, so the whole file is silent about the half that was failing.
+# An empty tenant yields a 200 over no rows rather than a 401, the 401 came from the assertion
+# being read under the reserved name alone, and behind the portal that refused a human exactly as
+# hard as a machine. See `test_embedded_assertion_transport.py`, which is the transport half.
 _MACHINE = "journey-a-cdd-so-604cef@portable-genai-sg.iam.gserviceaccount.com"
 _MACHINE_CLAIMS = {"email": _MACHINE, "hd": None, "sub": f"accounts.google.com:{_MACHINE}"}
 
