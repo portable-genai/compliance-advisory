@@ -22,7 +22,7 @@ Instead, every artifact route resolves a verified `Principal` server-side throug
 | Profile | Adapter | How identity is established |
 |---------|---------|-----------------------------|
 | `local` | `adapters/local/identity.py` `LocalPersonaIdentityAdapter` | Seeded dev personas, selected by the `X-Dev-Persona` header. No IdP, AD, or LDAP: demos and tests run offline. |
-| `gcp`, `platform` | `adapters/gcp/iap_identity.py` `IapIdentityAdapter` | Verifies the Cloud IAP-injected `x-goog-iap-jwt-assertion` JWT (signature, audience, issuer, expiry). Auth is configured ON the GCP service. |
+| `gcp`, `platform` | `adapters/gcp/iap_identity.py` `IapIdentityAdapter` | Verifies the Cloud IAP signed assertion (signature, audience, issuer, expiry), read from either name it travels under (3.2). Auth is configured ON the GCP service. |
 | `onprem` | `adapters/onprem/identity.py` `OnPremIdentityAdapter` | Fail-fast placeholder: implement your enterprise IdP (OIDC/SAML) verification here. |
 
 The verified `Principal` supplies:
@@ -35,8 +35,11 @@ The verified `Principal` supplies:
   knowledge bases (see `cdd-sow-research`) merge them into every KB query.
 
 A request whose identity cannot be resolved (unknown persona, missing or invalid IAP
-assertion) gets **401**. `GET /healthz`, `GET /personas`, and the agent card stay
-unauthenticated: the probe, the picker bootstrap, and discovery must work pre-login.
+assertion) gets **401**. A caller whose identity IS resolved and whom this deployment admits
+nothing gets **403** with the reason, never 401: see 3.3. `GET /healthz`, `GET /personas`, and
+the agent card stay unauthenticated: the probe, the picker bootstrap, and discovery must work
+pre-login. Those three are also why an embedded console can look healthy while every route that
+takes a principal is refused, which is exactly what happened on 2026-09-12 (3.2).
 
 ## 2. The three deployment shapes
 
@@ -223,15 +226,79 @@ installation needs no map at all. A MACHINE caller's tenant comes only from
 in a project shares one domain and keying tenancy on that would put unrelated machines into one
 tenant.
 
-So a deployment that maps nothing serves browsers correctly and refuses every service caller,
-with a 401 that names authentication rather than entitlement. This service was deployed in that
-state on 2026-09-12 and the refusal was invisible to a browser walkthrough. If another service
+So a deployment that maps nothing serves browsers correctly and gives every service caller an
+EMPTY tenant, which every tenant-scoped read fails closed on. That is a 200 over no rows, not a
+refusal, and an invisible row is indistinguishable from an empty dataset. If another service
 calls this one, its runtime service account has to be in that map, and the value is a reviewed
 deployment input like the audience beside it.
+
+An earlier version of this section said the unmapped machine caller was refused "with a 401 that
+names authentication rather than entitlement", and that this service was deployed in that state
+on 2026-09-12. The first half was wrong about the mechanism and the second was wrong about the
+cause. The 401 that deployment really answered came from the assertion's TRANSPORT, one layer
+further out, and it refused humans too. 3.2 is that finding.
 
 What a mapped machine caller may then do is exactly what its tenant allows, and nothing more: the
 regulatory corpus is public material and the read paths serve it, while anything that writes to
 the corpus or reads another tenant's material is refused by the same authorization a human faces.
+
+### 3.2 The two names one assertion travels under
+
+Behind an embedding host the assertion does **not** arrive under the name IAP injected it with.
+`x-goog-*` is Google's reserved namespace, and the serverless frontend strips the whole namespace
+from a request entering a service so that only the platform can set it. A host behind IAP
+therefore cannot forward what its own edge handed it: the host sets
+`x-goog-iap-jwt-assertion`, the frontend drops it, and the service refuses "request did not pass
+through IAP" about a request that passed through IAP one hop earlier.
+
+So the host also sends the same value as **`x-portal-iap-assertion`**, a name the platform does
+not reserve, and `adapters/gcp/iap_identity.py` reads either one through
+`hex_service_kit.federation.select_assertion`. Two properties make that safe, and both are pinned
+by `tests/unit/test_embedded_assertion_transport.py`:
+
+- The edge-injected name still **wins** when both are present. That is about diagnosis, not
+  trust: the direct edge's assertion is the one whose audience matches without any forwarding.
+- The fallback buys **no relaxation**. Either name takes the identical verification path, so a
+  caller gains nothing by choosing one. The header is transport; it vouches for nothing.
+
+This was measured, not reasoned about. Deployed as an embedded app on 2026-09-12, reading only
+the reserved name, this service answered `401 {"detail":"authentication required"}` on every
+route taking a principal, through both hosts, to a caller IAP had authenticated at the edge,
+while `/healthz`, `/personas` and the agent card answered through the same proxy with the same
+token. The audience, the reviewed tenant map and the reviewed machine map were all correct and
+none of them was ever read. The control that settles it: the sibling app `credit-memo-drafting`,
+deployed earlier against an older kit and reading both names, answered from inside its own
+application for the same caller through both hosts, with no machine map at all.
+
+Two lessons are worth keeping, because neither is visible from inside a green test suite.
+`tests/unit/test_iap_claim_half.py` asserts that a mapped machine caller resolves, and it passed
+throughout, because it hands the adapter its assertion under the reserved header: it models the
+claims faithfully and the transport wrongly. And a browser walkthrough of the console proves
+nothing about identity while the console's first calls are the three unauthenticated routes.
+
+### 3.3 What each refusal status means
+
+A refusal that cannot say which half failed sends the reader at the wrong layer, which is how the
+defect above survived a configuration review.
+
+| Status | Means | Where it is decided |
+|--------|-------|---------------------|
+| `401` "authentication required" | This caller's identity could not be established: no assertion under either name, an unpinned algorithm, a signature or audience that did not verify, a missing or blank required claim, a foreign issuer. | `IdentityError` from `adapters/gcp/iap_identity.py`, mapped in `api/security.py`. |
+| `403` and the reason | The caller **authenticated** and this deployment admits them nothing: an allowlist (`allowed_machine_subjects` / `allowed_human_subjects`) that does not name them, or a tenant the reviewed maps decline to resolve with `refuse_unmapped_tenant` set. | `AuthorizationRefusedError` (`ports/identity.py`), raised where the claim half refuses a caller whose assertion this adapter already accepted. |
+| `503` and the variable's name | **Nobody** can authenticate here: `COMPLIANCE_IAP_AUDIENCE` unset or set-and-empty, or `google-auth` not installed. No credential would have helped. | `EndUserAuthUnavailableError` subclasses (`adapters/gcp/iap_identity.py`). |
+
+`403` carries its reason because the fix is a reviewed map in the deployment and the caller
+cannot guess which one; `401` stays bare, because an unauthenticated caller learning which
+assertion would have worked is being handed the next thing to forge. The status matters most to
+the population this service was built for: a machine caller can act on a status and cannot act on
+a sentence, and `401` tells it to retry with a better credential, which can never succeed.
+
+The `403` path is reachable only where the deployment turns a knob on. This deployment leaves
+`refuse_unmapped_tenant` off, so an unmapped caller still resolves to an empty tenant and is
+fail-closed by entitlement filtering rather than refused outright; that is a deliberate posture,
+because turning it on would refuse a legitimately tenant-less caller instead of serving them the
+public regulatory corpus. What the status split guarantees is that **whenever** such a caller is
+refused, they are not told to authenticate again.
 
 ## 4. Client integration checklist
 
@@ -249,7 +316,8 @@ the corpus or reads another tenant's material is refused by the same authorizati
 
 ## 5. Security checklist
 
-- [ ] Identity is verified server-side per request; a 401 is returned when it is not.
+- [ ] Identity is verified server-side per request; a 401 is returned when it cannot be
+      established, and a 403 with its reason when it can be and the caller is not admitted.
 - [ ] The IAP assertion is re-verified in-process (audience pinned), not trusted as a
       plain header, and never logged.
 - [ ] The audit trail records the verified subject for every artifact (WORM sink).

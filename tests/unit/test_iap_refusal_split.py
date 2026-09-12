@@ -91,6 +91,7 @@ def test_the_transport_facts_are_the_commons_values() -> None:
     from compliance_advisory.adapters.gcp import iap_identity
 
     assert iap_identity._ASSERTION_HEADER == kit_federation.IAP_ASSERTION_HEADER
+    assert iap_identity._PORTAL_ASSERTION_HEADER == kit_federation.PORTAL_ASSERTION_HEADER
     assert iap_identity._IAP_ISSUER == kit_federation.IAP_ISSUER
     assert iap_identity._IAP_KEYS_URL == kit_federation.IAP_KEYS_URL
 

@@ -3,7 +3,10 @@
 Builds a :class:`RequestContext` from the inbound request headers and asks the active
 profile's :class:`IdentityPort` adapter to resolve a verified :class:`Principal`. Any
 request-body ``actor`` is ignored entirely: the audit actor flows from here, closing the
-spoofable-identity gap. A failure to resolve a verified principal is a 401.
+spoofable-identity gap. A failure to resolve a verified principal is a refusal whose STATUS
+says which failure it was: 401 when the caller's identity could not be established, 403 when it
+was established and this deployment admits them nothing, 503 when the deployment can
+authenticate nobody at all.
 
 The IdentityPort is the inner ring of the defense-in-depth PEP (edge IAP/Apigee ->
 agent-guardrail-gateway -> this per-backend check); this module is the per-backend ring.
@@ -16,7 +19,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request, status
 
 from ..domain.identity import IdentityError, Principal, RequestContext
-from ..ports.identity import EndUserAuthUnavailableError
+from ..ports.identity import AuthorizationRefusedError, EndUserAuthUnavailableError
 from . import deps
 
 
@@ -36,6 +39,14 @@ def get_principal(request: Request) -> Principal:
         # Ordered before the IdentityError branch, and it has to be: this is a subclass, so the
         # broader branch would swallow it and answer the 401 this whole split exists to avoid.
         # The message is the operator's, not the caller's, and it names the thing to fix.
+        raise HTTPException(status_code=exc.http_status, detail=str(exc)) from exc
+    except AuthorizationRefusedError as exc:
+        # Also before the IdentityError branch, and for the same reason: this caller
+        # AUTHENTICATED and is not entitled here, so 401 "authentication required" would be a
+        # false statement about them. It is a sibling of the branch above rather than a
+        # subclass, so the order between those two is free; only their order against the
+        # generic branch matters. The reason travels, because the fix is a reviewed map in the
+        # deployment and the caller cannot guess which one.
         raise HTTPException(status_code=exc.http_status, detail=str(exc)) from exc
     except IdentityError as exc:
         raise HTTPException(
