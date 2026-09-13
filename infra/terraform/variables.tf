@@ -125,20 +125,24 @@ variable "retention_days" {
 
 variable "manage_audit_config" {
   type        = bool
-  default     = true
+  default     = false
   description = <<-EOT
-    Whether THIS stack owns the project's data-access audit configuration, and so whether its
-    audit sink also routes the project's Cloud Audit Logs.
+    Whether THIS stack writes the project's data-access audit configuration.
 
-    True by default: data-access logging is what shows who read what, and an app deployed on
-    its own project should turn it on rather than rely on being told to.
+    False by default, and the default is the point. `google_project_iam_audit_config` is
+    AUTHORITATIVE for the service it names, so a second stack declaring `allServices` does
+    not add to that configuration, it REPLACES it, and a stack asking for DATA_READ and
+    DATA_WRITE removes an ADMIN_READ a sibling enabled. Terraform reports that as a create
+    rather than a change, because this stack holds no prior state for a resource that is
+    nonetheless already live. Nearly every stack in this fleet carries this resource and one
+    project hosts many of them, so a default of true is a race whose winner is whichever
+    stack applied last.
 
-    Set false where another stack in the same project already owns it.
-    `google_project_iam_audit_config` is AUTHORITATIVE for the service it names, so a second
-    stack declaring `allServices` does not add to the configuration, it replaces it. Terraform
-    shows that as a create, not a change, because this stack holds no state for a resource
-    that is already live. When false, the audit sink routes only this application's own log
-    rather than a copy of every sibling's Cloud Audit Logs.
+    Data-access logs are also the highest-volume class Cloud Logging ingests, and nothing in
+    the reference deployment reads them.
+
+    Set true in exactly one stack per project, in that deployment's own tfvars, where the
+    project genuinely wants data-access logging on.
   EOT
 }
 
