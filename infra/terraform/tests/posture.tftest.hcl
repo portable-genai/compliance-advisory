@@ -99,8 +99,9 @@ run "defaults_create_no_alloydb_and_keep_every_reversible_control" {
   command = plan
 
   variables {
-    enable_vpc_sc = false
-    worm_locked   = false
+    enable_vpc_sc       = false
+    worm_locked         = false
+    manage_audit_config = true
   }
 
   assert {
@@ -167,7 +168,7 @@ run "defaults_create_no_alloydb_and_keep_every_reversible_control" {
       google_model_armor_template.compliance_guardrail.template_metadata[0].log_sanitize_operations == true &&
       length(google_cloud_asset_project_feed.posture) == 1
     )
-    error_message = "Every reversible control keeps its strict default; only a deployment's tfvars declines one."
+    error_message = "Every reversible control keeps its strict default, except the authoritative audit config this run names explicitly; only a deployment's tfvars declines the rest."
   }
 
   assert {
