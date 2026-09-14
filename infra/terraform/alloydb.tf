@@ -63,8 +63,11 @@ resource "google_alloydb_cluster" "freshness" {
   }
 
   # CMEK: explicit regional key (P-09). Does not cascade from any other resource.
-  encryption_config {
-    kms_key_name = google_kms_crypto_key.compliance.id
+  dynamic "encryption_config" {
+    for_each = var.cmek_enabled ? [1] : []
+    content {
+      kms_key_name = one(google_kms_crypto_key.compliance[*].id)
+    }
   }
 
   # Initial app user; the password is the sensitive per-tenant variable.
@@ -77,8 +80,11 @@ resource "google_alloydb_cluster" "freshness" {
   continuous_backup_config {
     enabled              = true
     recovery_window_days = 14
-    encryption_config {
-      kms_key_name = google_kms_crypto_key.compliance.id
+    dynamic "encryption_config" {
+      for_each = var.cmek_enabled ? [1] : []
+      content {
+        kms_key_name = one(google_kms_crypto_key.compliance[*].id)
+      }
     }
   }
 

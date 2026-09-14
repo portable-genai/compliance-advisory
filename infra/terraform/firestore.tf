@@ -40,7 +40,7 @@ resource "google_firestore_database" "compliance" {
   type        = "FIRESTORE_NATIVE"
 
   dynamic "cmek_config" {
-    for_each = var.firestore_cmek_enabled ? [google_kms_crypto_key.compliance.id] : []
+    for_each = var.cmek_enabled && var.firestore_cmek_enabled ? [one(google_kms_crypto_key.compliance[*].id)] : []
     content {
       kms_key_name = cmek_config.value
     }
