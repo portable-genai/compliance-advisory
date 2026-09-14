@@ -28,6 +28,7 @@ run "the_registry_is_regional_docker_cmek_and_immutably_tagged" {
   command = plan
 
   variables {
+    cmek_enabled  = true
     enable_vpc_sc = false
     worm_locked   = false
   }
@@ -54,7 +55,7 @@ run "the_registry_is_regional_docker_cmek_and_immutably_tagged" {
   }
 
   assert {
-    condition     = google_artifact_registry_repository.images.kms_key_name == google_kms_crypto_key.compliance.id
+    condition     = google_artifact_registry_repository.images.kms_key_name == google_kms_crypto_key.compliance[0].id
     error_message = "An image carries the application and its configuration, so the repository uses this stack's own key (P-09)."
   }
 
@@ -67,8 +68,8 @@ run "the_registry_is_regional_docker_cmek_and_immutably_tagged" {
   # the caller, so without this binding the repository cannot be created at all.
   assert {
     condition = (
-      google_kms_crypto_key_iam_member.artifactregistry.crypto_key_id == google_kms_crypto_key.compliance.id &&
-      google_kms_crypto_key_iam_member.artifactregistry.role == "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+      google_kms_crypto_key_iam_member.artifactregistry[0].crypto_key_id == google_kms_crypto_key.compliance[0].id &&
+      google_kms_crypto_key_iam_member.artifactregistry[0].role == "roles/cloudkms.cryptoKeyEncrypterDecrypter"
     )
     error_message = "The Artifact Registry service agent must hold the key it is asked to encrypt with."
   }

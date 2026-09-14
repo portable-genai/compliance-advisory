@@ -8,6 +8,7 @@
 #   P-03 (residency): the key ring is regional, never a global or multi-region key.
 
 resource "google_kms_key_ring" "compliance" {
+  count    = var.cmek_enabled ? 1 : 0
   name     = "compliance-advisory-ring"
   location = var.region
 
@@ -15,8 +16,9 @@ resource "google_kms_key_ring" "compliance" {
 }
 
 resource "google_kms_crypto_key" "compliance" {
+  count    = var.cmek_enabled ? 1 : 0
   name     = "compliance-advisory-cmek"
-  key_ring = google_kms_key_ring.compliance.id
+  key_ring = one(google_kms_key_ring.compliance[*].id)
 
   purpose         = "ENCRYPT_DECRYPT"
   rotation_period = "7776000s" # 90 days
@@ -42,8 +44,8 @@ data "google_project" "this" {
 
 # AlloyDB service agent, only when AlloyDB exists.
 resource "google_kms_crypto_key_iam_member" "alloydb" {
-  count         = var.enable_alloydb ? 1 : 0
-  crypto_key_id = google_kms_crypto_key.compliance.id
+  count         = var.cmek_enabled && (var.enable_alloydb) ? 1 : 0
+  crypto_key_id = one(google_kms_crypto_key.compliance[*].id)
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:service-${data.google_project.this.number}@gcp-sa-alloydb.iam.gserviceaccount.com"
 }
@@ -60,29 +62,32 @@ resource "google_project_service_identity" "firestore" {
 }
 
 resource "google_kms_crypto_key_iam_member" "firestore" {
-  count         = var.firestore_cmek_enabled ? 1 : 0
-  crypto_key_id = google_kms_crypto_key.compliance.id
+  count         = var.cmek_enabled && (var.firestore_cmek_enabled) ? 1 : 0
+  crypto_key_id = one(google_kms_crypto_key.compliance[*].id)
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:${google_project_service_identity.firestore[0].email}"
 }
 
 # Discovery Engine (Agent Search) service agent.
 resource "google_kms_crypto_key_iam_member" "discoveryengine" {
-  crypto_key_id = google_kms_crypto_key.compliance.id
+  count         = var.cmek_enabled ? 1 : 0
+  crypto_key_id = one(google_kms_crypto_key.compliance[*].id)
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:service-${data.google_project.this.number}@gcp-sa-discoveryengine.iam.gserviceaccount.com"
 }
 
 # Vertex AI / Agent Runtime service agent.
 resource "google_kms_crypto_key_iam_member" "aiplatform" {
-  crypto_key_id = google_kms_crypto_key.compliance.id
+  count         = var.cmek_enabled ? 1 : 0
+  crypto_key_id = one(google_kms_crypto_key.compliance[*].id)
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:service-${data.google_project.this.number}@gcp-sa-aiplatform.iam.gserviceaccount.com"
 }
 
 # Cloud Logging service agent (CMEK on the audit bucket).
 resource "google_kms_crypto_key_iam_member" "logging" {
-  crypto_key_id = google_kms_crypto_key.compliance.id
+  count         = var.cmek_enabled ? 1 : 0
+  crypto_key_id = one(google_kms_crypto_key.compliance[*].id)
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:service-${data.google_project.this.number}@gcp-sa-logging.iam.gserviceaccount.com"
 }
