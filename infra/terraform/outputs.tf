@@ -49,7 +49,7 @@ output "image_registry" {
 # --------------------------------- KMS -------------------------------------- #
 output "kms_key" {
   description = "Regional CMEK crypto key id (settings.yaml kms_key / COMPLIANCE_KMS_KEY)."
-  value       = google_kms_crypto_key.compliance.id
+  value       = one(google_kms_crypto_key.compliance[*].id)
 }
 
 # --------------------------------- AlloyDB ---------------------------------- #

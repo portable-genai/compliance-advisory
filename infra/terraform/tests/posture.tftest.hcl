@@ -99,6 +99,7 @@ run "defaults_create_no_alloydb_and_keep_every_reversible_control" {
   command = plan
 
   variables {
+    cmek_enabled        = true
     enable_vpc_sc       = false
     worm_locked         = false
     manage_audit_config = true
@@ -189,6 +190,9 @@ run "shared_project_declines" {
   command = plan
 
   variables {
+    # CMEK is the one control this deployment keeps: its registry, log bucket and stores were
+    # bound to the key on the first apply and cannot be unbound. Firestore CMEK stays declined.
+    cmek_enabled                        = true
     worm_locked                         = false
     retention_days                      = 30
     manage_org_policies                 = false
@@ -324,6 +328,7 @@ run "alloydb_selected_for_the_platform_profile" {
   command = plan
 
   variables {
+    cmek_enabled     = true
     enable_vpc_sc    = false
     worm_locked      = false
     enable_alloydb   = true

@@ -55,7 +55,8 @@ resource "google_project_iam_member" "app" {
 
 # App uses the CMEK for envelope ops it performs directly.
 resource "google_kms_crypto_key_iam_member" "app" {
-  crypto_key_id = google_kms_crypto_key.compliance.id
+  count         = var.cmek_enabled ? 1 : 0
+  crypto_key_id = one(google_kms_crypto_key.compliance[*].id)
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:${google_service_account.app.email}"
 }
@@ -77,8 +78,8 @@ resource "google_project_iam_member" "additional_serving" {
 }
 
 resource "google_kms_crypto_key_iam_member" "additional_serving" {
-  for_each      = toset(var.additional_serving_service_accounts)
-  crypto_key_id = google_kms_crypto_key.compliance.id
+  for_each      = var.cmek_enabled ? toset(var.additional_serving_service_accounts) : toset([])
+  crypto_key_id = one(google_kms_crypto_key.compliance[*].id)
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:${each.value}"
 }
@@ -118,7 +119,8 @@ resource "google_project_iam_member" "pipeline" {
 
 # Pipeline uses the CMEK (e.g. staging buckets, ledger writes).
 resource "google_kms_crypto_key_iam_member" "pipeline" {
-  crypto_key_id = google_kms_crypto_key.compliance.id
+  count         = var.cmek_enabled ? 1 : 0
+  crypto_key_id = one(google_kms_crypto_key.compliance[*].id)
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:${google_service_account.pipeline.email}"
 }
