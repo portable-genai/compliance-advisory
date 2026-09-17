@@ -254,7 +254,7 @@ def test_a_verified_assertion_that_names_nobody_is_refused() -> None:
 # An empty tenant yields a 200 over no rows rather than a 401, the 401 came from the assertion
 # being read under the reserved name alone, and behind the portal that refused a human exactly as
 # hard as a machine. See `test_embedded_assertion_transport.py`, which is the transport half.
-_MACHINE = "journey-a-cdd-so-604cef@portable-genai-sg.iam.gserviceaccount.com"
+_MACHINE = "journey-a-cdd-so-604cef@demo-project.iam.gserviceaccount.com"
 _MACHINE_CLAIMS = {"email": _MACHINE, "hd": None, "sub": f"accounts.google.com:{_MACHINE}"}
 
 
@@ -282,7 +282,7 @@ def test_a_machine_address_the_map_does_not_name_stays_refused(monkeypatch: Any)
     """A map admits what it names and nothing adjacent: not the domain, not a sibling account."""
     monkeypatch.setenv(
         "COMPLIANCE_IAP_MACHINE_TENANTS_JSON",
-        _json.dumps({"someone-else@portable-genai-sg.iam.gserviceaccount.com": "reference-bank"}),
+        _json.dumps({"someone-else@demo-project.iam.gserviceaccount.com": "reference-bank"}),
     )
     assert _resolve(_claims(**_MACHINE_CLAIMS)).tenant == ""
 
