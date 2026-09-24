@@ -74,6 +74,8 @@ def _under_profile(
         monkeypatch.delenv(_PROFILE_ENV, raising=False)
     else:
         monkeypatch.setenv(_PROFILE_ENV, profile)
+    # A managed process with review routing on names its console, or it refuses to boot.
+    monkeypatch.setenv("HUMAN_REVIEW_URL", "https://review.example.test")
     monkeypatch.delenv(_INSECURE_DEMO_ENV, raising=False)
     importlib.reload(module.deps)
     return importlib.reload(module)

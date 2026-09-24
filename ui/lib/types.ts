@@ -26,6 +26,9 @@ export type DocType =
 /** Severity enum used by checklist items. */
 export type Severity = "low" | "medium" | "high" | "critical";
 
+/** What happened to the human-review hand-off for one response. */
+export type ReviewRouting = "routed" | "failed" | "off" | "not_required";
+
 /** Stable regulator -> jurisdiction mapping (mirrors REGULATOR_JURISDICTION). */
 export const REGULATOR_JURISDICTION: Record<Regulator, Jurisdiction> = {
   MAS: "SG",
@@ -128,6 +131,7 @@ export interface Answer {
   confidence: number;
   requires_human_review: boolean;
   caveats: string[];
+  review_routing?: ReviewRouting;
 }
 
 export interface ChecklistItem {
@@ -291,6 +295,7 @@ export interface EvidencePack {
   coverage_summary: Record<string, number>;
   generated_at: string;
   requires_human_review: boolean;
+  review_routing?: ReviewRouting;
 }
 
 export type ArtifactKind =

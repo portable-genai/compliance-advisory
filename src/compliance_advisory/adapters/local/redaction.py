@@ -15,7 +15,10 @@ from ...domain.models import RedactionFinding, RedactionResult
 
 _NRIC_RE = re.compile(r"\b[STFGM]\d{7}[A-Z]\b")
 _EMAIL_RE = re.compile(r"\b[\w.%+-]+@[\w.-]+\.[A-Za-z]{2,}\b")
-_PHONE_RE = re.compile(r"\b(?:\+?65[\s-]?)?[689]\d{3}[\s-]?\d{4}\b")
+# An eight-digit run after a currency marker is an amount, not a phone number: "a transfer of
+# SGD 90000000" used to reach the model as "SGD [PHONE]". Each lookbehind is fixed-width.
+_NOT_AN_AMOUNT = r"(?<![$€£¥])(?<![$€£¥]\s)(?<!(?:SGD|USD|HKD|AUD|JPY|EUR|GBP|CNY)\s)"
+_PHONE_RE = re.compile(_NOT_AN_AMOUNT + r"\b(?:\+?65[\s-]?)?[689]\d{3}[\s-]?\d{4}\b")
 
 
 class LocalRegexRedactionAdapter:

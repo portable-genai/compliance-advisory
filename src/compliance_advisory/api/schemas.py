@@ -13,7 +13,7 @@ domain models, the ports, and the orchestration services — never on a concrete
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -23,6 +23,10 @@ from ..domain.serialization import to_jsonable
 # --------------------------------------------------------------------------- #
 # Shared citation projections
 # --------------------------------------------------------------------------- #
+
+
+#: The four outcomes of a human-review hand-off, as the API reports them.
+ReviewRoutingValue = Literal["routed", "failed", "off", "not_required"]
 
 
 class CitationModel(BaseModel):
@@ -103,6 +107,11 @@ class AnswerResponse(BaseModel):
     requires_human_review: bool = True
     caveats: list[str] = Field(default_factory=list)
 
+    #: Redaction changed the user's input before the model saw it; the console says so.
+    input_redacted: bool = False
+    #: What happened to the human-review hand-off: routed, failed, off or not_required.
+    review_routing: ReviewRoutingValue = "not_required"
+
     @classmethod
     def from_domain(cls, answer: m.Answer) -> AnswerResponse:
         return cls(
@@ -143,6 +152,9 @@ class ChecklistResponse(BaseModel):
     items: list[ChecklistItemModel] = Field(default_factory=list)
     requires_human_review: bool = True
 
+    #: Redaction changed the user's input before the model saw it; the console says so.
+    input_redacted: bool = False
+
     @classmethod
     def from_domain(cls, checklist: m.ControlChecklist) -> ChecklistResponse:
         return cls(
@@ -182,6 +194,9 @@ class TestCasesResponse(BaseModel):
     use_case: str
     test_cases: list[TestCaseModel] = Field(default_factory=list)
 
+    #: Redaction changed the user's input before the model saw it; the console says so.
+    input_redacted: bool = False
+
     @classmethod
     def from_domain(cls, use_case: str, cases: list[m.TestCase]) -> TestCasesResponse:
         return cls(
@@ -215,6 +230,9 @@ class RegulatorQuestionsResponse(BaseModel):
 
     use_case: str
     questions: list[RegulatorQuestionModel] = Field(default_factory=list)
+
+    #: Redaction changed the user's input before the model saw it; the console says so.
+    input_redacted: bool = False
 
     @classmethod
     def from_domain(

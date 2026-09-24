@@ -1,6 +1,6 @@
 "use client";
 
-import type { Coverage, Severity } from "@/lib/types";
+import type { Coverage, ReviewRouting, Severity } from "@/lib/types";
 
 /**
  * Prominent maker-checker banner (General Principle P-06). Rendered whenever an
@@ -11,9 +11,12 @@ import type { Coverage, Severity } from "@/lib/types";
 export function HumanReviewBanner({
   reason,
   compact = false,
+  routing,
 }: {
   reason?: string;
   compact?: boolean;
+  /** What happened to the hand-off to the review console, when the API reports it. */
+  routing?: ReviewRouting;
 }) {
   return (
     <div
@@ -47,7 +50,36 @@ export function HumanReviewBanner({
           {reason ??
             "This artifact is gated for sign-off by a second reviewer (checker) before it can be relied upon."}
         </p>
+        {routing && routing !== "not_required" && (
+          <p
+            data-review-routing={routing}
+            className={`mt-1 text-xs font-medium ${
+              routing === "routed" ? "text-emerald-800" : "text-rose-800"
+            }`}
+          >
+            {REVIEW_ROUTING_TEXT[routing]}
+          </p>
+        )}
       </div>
+    </div>
+  );
+}
+
+const REVIEW_ROUTING_TEXT: Record<Exclude<ReviewRouting, "not_required">, string> = {
+  routed: "Sent to the review console.",
+  failed: "Could not reach the review console; this item is not queued for review.",
+  off: "Review routing is off in this deployment; this item is not queued for review.",
+};
+
+/** Shown when redaction changed what the user typed before the model saw it. */
+export function RedactionNotice() {
+  return (
+    <div
+      role="note"
+      data-input-redacted="true"
+      className="mb-3 rounded-lg border border-sky-200 bg-sky-50 p-2.5 text-xs text-sky-900"
+    >
+      Personal data in your input was masked before the model saw it.
     </div>
   );
 }

@@ -45,6 +45,7 @@ from ..pipelines import ingest as pipeline_ingest
 from ..ports.identity import VERIFIED
 from . import deps
 from .control_mapping_routes import router as control_mapping_router
+from .disclosure import disclose
 from .horizon_routes import router as horizon_router
 from .schemas import (
     AgentCardModel,
@@ -288,6 +289,8 @@ def ask(
     request: AskRequest,
     principal: CurrentPrincipal,
     service: Annotated[ComplianceQAService, Depends(deps.get_qa_service)],
+    redaction: deps.RequestRedaction,
+    routing: deps.RequestReviewRouter,
 ) -> AnswerResponse | JSONResponse:
     """Grounded Q&A with regulator/jurisdiction/document/version/page citations.
 
@@ -312,7 +315,7 @@ def ask(
                 "citations": [],
             },
         )
-    return AnswerResponse.from_domain(answer)
+    return disclose(AnswerResponse.from_domain(answer), redaction=redaction, routing=routing)
 
 
 @app.post("/checklist", response_model=ChecklistResponse, tags=["artifacts"])
@@ -320,13 +323,14 @@ def checklist(
     request: UseCaseRequest,
     principal: CurrentPrincipal,
     service: Annotated[ChecklistService, Depends(deps.get_checklist_service)],
+    redaction: deps.RequestRedaction,
 ) -> JSONResponse | ChecklistResponse:
     """Use-case-specific control checklist (a maker-checker / human-review artifact)."""
     try:
         result = service.build(request.use_case, principal.actor)
     except GuardrailBlockedError as exc:
         return _blocked_use_case_response(request.use_case, str(exc))
-    return ChecklistResponse.from_domain(result)
+    return disclose(ChecklistResponse.from_domain(result), redaction=redaction)
 
 
 @app.post("/testcases", response_model=TestCasesResponse, tags=["artifacts"])
@@ -334,13 +338,14 @@ def testcases(
     request: UseCaseRequest,
     principal: CurrentPrincipal,
     service: Annotated[TestCaseService, Depends(deps.get_testcase_service)],
+    redaction: deps.RequestRedaction,
 ) -> JSONResponse | TestCasesResponse:
     """Automated test cases that verify each control for the use case."""
     try:
         cases = service.generate(request.use_case, principal.actor)
     except GuardrailBlockedError as exc:
         return _blocked_use_case_response(request.use_case, str(exc))
-    return TestCasesResponse.from_domain(request.use_case, cases)
+    return disclose(TestCasesResponse.from_domain(request.use_case, cases), redaction=redaction)
 
 
 @app.post(
@@ -352,13 +357,16 @@ def regulator_questions(
     request: UseCaseRequest,
     principal: CurrentPrincipal,
     service: Annotated[RegulatorQuestionService, Depends(deps.get_regulator_question_service)],
+    redaction: deps.RequestRedaction,
 ) -> JSONResponse | RegulatorQuestionsResponse:
     """The exact questions a regulator/CRO will ask, with cited model answers."""
     try:
         questions = service.generate(request.use_case, principal.actor)
     except GuardrailBlockedError as exc:
         return _blocked_use_case_response(request.use_case, str(exc))
-    return RegulatorQuestionsResponse.from_domain(request.use_case, questions)
+    return disclose(
+        RegulatorQuestionsResponse.from_domain(request.use_case, questions), redaction=redaction
+    )
 
 
 def _blocked_use_case_response(use_case: str, reason: str) -> JSONResponse:

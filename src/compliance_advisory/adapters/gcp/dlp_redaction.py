@@ -35,7 +35,18 @@ _DEFAULT_INFO_TYPES: tuple[str, ...] = (
 _SG_NRIC_INFO_TYPE = "SG_NRIC_FIN"
 _SG_NRIC_REGEX = r"[STFGM]\d{7}[A-Z]"
 
-_MASKING_CHAR = "#"
+# Tuned against false positives (runtime-control contract, 2026-09-24). A regulatory question
+# names regulators, instruments and clauses, and at POSSIBLE likelihood DLP could take
+# "Monetary Authority" or "Basel" for a person and mask it, so the model answered a question
+# the user did not ask. Three changes: only LIKELY findings are masked; a match is REPLACED
+# with its info-type name rather than a run of mask characters, so the model still reads the
+# shape of the question; and a PERSON_NAME finding containing this domain's own vocabulary is
+# excluded.
+_MIN_LIKELIHOOD = "LIKELY"
+_DOMAIN_VOCABULARY_REGEX = (
+    r"(?i)\b(MAS|HKMA|APRA|JFSA|FSA|FATF|BCBS|Basel|NIST|FEAT|Monetary Authority|"
+    r"Notice|Guidelines?|Circular|Standard|CPS|CPG|SPM|Prudential|Regulation)\b"
+)
 
 
 class DlpRedactionAdapter:
@@ -96,19 +107,35 @@ class DlpRedactionAdapter:
             {
                 "info_type": {"name": _SG_NRIC_INFO_TYPE},
                 "regex": {"pattern": _SG_NRIC_REGEX},
-                "likelihood": "POSSIBLE",
+                # The pattern is specific enough to be a finding in its own right; it must
+                # clear the LIKELY floor below or no NRIC would ever be masked.
+                "likelihood": "VERY_LIKELY",
+            }
+        ]
+        rule_set = [
+            {
+                "info_types": [{"name": "PERSON_NAME"}],
+                "rules": [
+                    {
+                        "exclusion_rule": {
+                            "regex": {"pattern": _DOMAIN_VOCABULARY_REGEX},
+                            "matching_type": "MATCHING_TYPE_PARTIAL_MATCH",
+                        }
+                    }
+                ],
             }
         ]
         return {
             "info_types": info_types,
             "custom_info_types": custom_info_types,
-            "min_likelihood": "POSSIBLE",
+            "rule_set": rule_set,
+            "min_likelihood": _MIN_LIKELIHOOD,
             "include_quote": False,
         }
 
     def _inline_deidentify_config(self) -> dict[str, Any]:
-        # Mask every detected info type (built-in + the SG NRIC custom type) with
-        # a single masking character — irreversible, no surrogate to reverse.
+        # Replace every detected info type (built-in + the SG NRIC custom type) with its
+        # name, e.g. "[PERSON_NAME]": irreversible, and the model still reads the question.
         # verify: https://cloud.google.com/dlp/docs/reference/rest/v2/DeidentifyConfig
         all_info_types = [{"name": name} for name in _DEFAULT_INFO_TYPES] + [
             {"name": _SG_NRIC_INFO_TYPE}
@@ -118,11 +145,7 @@ class DlpRedactionAdapter:
                 "transformations": [
                     {
                         "info_types": all_info_types,
-                        "primitive_transformation": {
-                            "character_mask_config": {
-                                "masking_character": _MASKING_CHAR,
-                            }
-                        },
+                        "primitive_transformation": {"replace_with_info_type_config": {}},
                     }
                 ]
             }

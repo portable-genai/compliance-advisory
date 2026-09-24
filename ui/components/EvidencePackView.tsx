@@ -41,7 +41,10 @@ export function EvidencePackView({ pack }: { pack: EvidencePack | null }) {
   }
   return (
     <div className="space-y-4">
-      <HumanReviewBanner reason="An evidence pack is the regulator deliverable and always requires a checker's sign-off before it leaves the bank." />
+      <HumanReviewBanner
+        reason="An evidence pack is the regulator deliverable and always requires a checker's sign-off before it leaves the bank."
+        routing={pack.review_routing}
+      />
 
       <div className="rounded-xl border border-ink-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">

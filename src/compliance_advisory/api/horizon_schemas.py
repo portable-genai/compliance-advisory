@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from ..domain.horizon import models as m
 from ..domain.serialization import to_jsonable
+from .schemas import ReviewRoutingValue
 
 
 # --------------------------------------------------------------------------- #
@@ -158,6 +159,9 @@ class HorizonScanResponse(BaseModel):
     generated_at: str
     requires_human_review: bool = True
 
+    #: What happened to the human-review hand-off: routed, failed, off or not_required.
+    review_routing: ReviewRoutingValue = "not_required"
+
     @classmethod
     def from_domain(cls, scan: m.HorizonScan) -> HorizonScanResponse:
         return cls(
@@ -183,6 +187,9 @@ class ImplementationItemModel(BaseModel):
     note: str = ""
     updated_by: str = ""
     updated_at: str
+
+    #: What happened to the human-review hand-off: routed, failed, off or not_required.
+    review_routing: ReviewRoutingValue = "not_required"
 
     @classmethod
     def from_domain(cls, item: m.ImplementationItem) -> ImplementationItemModel:

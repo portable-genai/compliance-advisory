@@ -15,7 +15,11 @@ references); the underlying adapters are themselves constructed lazily by the Co
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Annotated, Any
 
+from fastapi import Depends
+
+from ..adapters.controls import DisclosingRedaction, RecordingReviewRouter
 from ..config import Container, Settings, build_container
 from ..domain.control_mapping import (
     ControlMappingService,
@@ -58,52 +62,48 @@ def get_settings() -> Settings:
 # --------------------------------------------------------------------------- #
 
 
-def get_qa_service() -> ComplianceQAService:
+def get_request_redaction() -> DisclosingRedaction:
+    """The redaction adapter for ONE request, wrapped so the response can disclose a change.
+
+    FastAPI resolves a dependency once per request, so the route and the service it builds
+    receive the same wrapper and the route reads what the service's redaction did.
+    """
+    return DisclosingRedaction(get_container().redaction)
+
+
+def get_request_review_router() -> RecordingReviewRouter:
+    """The review router for ONE request, wrapped so the response reports the hand-off."""
+    return RecordingReviewRouter(get_container().review_router)
+
+
+#: Injected by FastAPI; ``None`` when a getter is called directly (the MCP server does), which
+#: binds the container's adapters unwrapped.
+RequestRedaction = Annotated[DisclosingRedaction | None, Depends(get_request_redaction)]
+RequestReviewRouter = Annotated[RecordingReviewRouter | None, Depends(get_request_review_router)]
+
+
+def get_qa_service(
+    redaction: RequestRedaction = None, review_router: RequestReviewRouter = None
+) -> ComplianceQAService:
     """ComplianceQAService(retrieval, llm, guardrail, redaction, grounding, tracer, audit)."""
-    c = get_container()
-    return ComplianceQAService(
-        retrieval=c.retrieval,
-        llm=c.llm,
-        guardrail=c.guardrail,
-        redaction=c.redaction,
-        grounding=c.grounding,
-        tracer=c.tracer,
-        audit=c.audit,
-        review_policy=HumanReviewPolicy.from_policy(c.settings.policy),
-        policy=c.settings.policy,
-        review_router=c.review_router,
-    )
+    return build_qa_service(get_container(), redaction=redaction, review_router=review_router)
 
 
-def get_checklist_service() -> ChecklistService:
+def get_checklist_service(redaction: RequestRedaction = None) -> ChecklistService:
     """ChecklistService(retrieval, llm, guardrail, redaction, tracer, audit)."""
-    c = get_container()
-    return ChecklistService(
-        retrieval=c.retrieval,
-        llm=c.llm,
-        guardrail=c.guardrail,
-        redaction=c.redaction,
-        tracer=c.tracer,
-        audit=c.audit,
-    )
+    return build_checklist_service(get_container(), redaction=redaction)
 
 
-def get_testcase_service() -> TestCaseService:
+def get_testcase_service(redaction: RequestRedaction = None) -> TestCaseService:
     """TestCaseService(retrieval, llm, guardrail, redaction, tracer, audit)."""
-    c = get_container()
-    return TestCaseService(
-        retrieval=c.retrieval,
-        llm=c.llm,
-        guardrail=c.guardrail,
-        redaction=c.redaction,
-        tracer=c.tracer,
-        audit=c.audit,
-    )
+    return build_testcase_service(get_container(), redaction=redaction)
 
 
-def get_regulator_question_service() -> RegulatorQuestionService:
+def get_regulator_question_service(
+    redaction: RequestRedaction = None,
+) -> RegulatorQuestionService:
     """RegulatorQuestionService(retrieval, llm, guardrail, redaction, tracer, audit)."""
-    return build_regulator_question_service(get_container())
+    return build_regulator_question_service(get_container(), redaction=redaction)
 
 
 # --------------------------------------------------------------------------- #
@@ -116,53 +116,57 @@ def get_regulator_question_service() -> RegulatorQuestionService:
 # --------------------------------------------------------------------------- #
 
 
-def build_qa_service(container: Container) -> ComplianceQAService:
+def build_qa_service(
+    container: Container, *, redaction: Any = None, review_router: Any = None
+) -> ComplianceQAService:
     """Assemble a :class:`ComplianceQAService` from an explicit Container."""
     return ComplianceQAService(
         retrieval=container.retrieval,
         llm=container.llm,
         guardrail=container.guardrail,
-        redaction=container.redaction,
+        redaction=redaction or container.redaction,
         grounding=container.grounding,
         tracer=container.tracer,
         audit=container.audit,
         review_policy=HumanReviewPolicy.from_policy(container.settings.policy),
         policy=container.settings.policy,
-        review_router=container.review_router,
+        review_router=review_router or container.review_router,
     )
 
 
-def build_checklist_service(container: Container) -> ChecklistService:
+def build_checklist_service(container: Container, *, redaction: Any = None) -> ChecklistService:
     """Assemble a :class:`ChecklistService` from an explicit Container."""
     return ChecklistService(
         retrieval=container.retrieval,
         llm=container.llm,
         guardrail=container.guardrail,
-        redaction=container.redaction,
+        redaction=redaction or container.redaction,
         tracer=container.tracer,
         audit=container.audit,
     )
 
 
-def build_testcase_service(container: Container) -> TestCaseService:
+def build_testcase_service(container: Container, *, redaction: Any = None) -> TestCaseService:
     """Assemble a :class:`TestCaseService` from an explicit Container."""
     return TestCaseService(
         retrieval=container.retrieval,
         llm=container.llm,
         guardrail=container.guardrail,
-        redaction=container.redaction,
+        redaction=redaction or container.redaction,
         tracer=container.tracer,
         audit=container.audit,
     )
 
 
-def build_regulator_question_service(container: Container) -> RegulatorQuestionService:
+def build_regulator_question_service(
+    container: Container, *, redaction: Any = None
+) -> RegulatorQuestionService:
     """Assemble a :class:`RegulatorQuestionService` from an explicit Container."""
     return RegulatorQuestionService(
         retrieval=container.retrieval,
         llm=container.llm,
         guardrail=container.guardrail,
-        redaction=container.redaction,
+        redaction=redaction or container.redaction,
         tracer=container.tracer,
         audit=container.audit,
     )
@@ -185,9 +189,9 @@ def get_mapping_service() -> ControlMappingService:
     return build_mapping_service(get_container())
 
 
-def get_evidence_service() -> EvidencePackService:
+def get_evidence_service(review_router: RequestReviewRouter = None) -> EvidencePackService:
     """EvidencePackService(requirement_source, control_inventory, llm, tracer, audit, router)."""
-    return build_evidence_service(get_container())
+    return build_evidence_service(get_container(), review_router=review_router)
 
 
 def get_gap_service() -> GapAnalysisService:
@@ -206,7 +210,9 @@ def build_mapping_service(container: Container) -> ControlMappingService:
     )
 
 
-def build_evidence_service(container: Container) -> EvidencePackService:
+def build_evidence_service(
+    container: Container, *, review_router: Any = None
+) -> EvidencePackService:
     """Assemble an :class:`EvidencePackService` from an explicit Container."""
     return EvidencePackService(
         requirement_source=container.requirement_source,
@@ -214,7 +220,7 @@ def build_evidence_service(container: Container) -> EvidencePackService:
         llm=container.llm,
         tracer=container.tracer,
         audit=container.audit,
-        review_router=container.review_router,
+        review_router=review_router or container.review_router,
     )
 
 
@@ -245,17 +251,21 @@ def build_gap_service(container: Container) -> GapAnalysisService:
 # --------------------------------------------------------------------------- #
 
 
-def get_horizon_scan_service() -> HorizonScanService:
+def get_horizon_scan_service(review_router: RequestReviewRouter = None) -> HorizonScanService:
     """HorizonScanService(ledger, source_catalog, llm, tracer, audit, tracker, ...)."""
-    return build_horizon_scan_service(get_container())
+    return build_horizon_scan_service(get_container(), review_router=review_router)
 
 
-def get_horizon_tracking_service() -> ImplementationTrackingService:
+def get_horizon_tracking_service(
+    review_router: RequestReviewRouter = None,
+) -> ImplementationTrackingService:
     """ImplementationTrackingService(tracker, tracer, audit, review_router)."""
-    return build_horizon_tracking_service(get_container())
+    return build_horizon_tracking_service(get_container(), review_router=review_router)
 
 
-def build_horizon_scan_service(container: Container) -> HorizonScanService:
+def build_horizon_scan_service(
+    container: Container, *, review_router: Any = None
+) -> HorizonScanService:
     """Assemble a :class:`HorizonScanService` from an explicit Container."""
     return HorizonScanService(
         ledger=container.ledger,
@@ -266,17 +276,19 @@ def build_horizon_scan_service(container: Container) -> HorizonScanService:
         tracker=container.horizon_tracker,
         policy=HorizonPolicy(container.settings.horizon),
         gap_service=build_gap_service(container),
-        review_router=container.review_router,
+        review_router=review_router or container.review_router,
     )
 
 
-def build_horizon_tracking_service(container: Container) -> ImplementationTrackingService:
+def build_horizon_tracking_service(
+    container: Container, *, review_router: Any = None
+) -> ImplementationTrackingService:
     """Assemble an :class:`ImplementationTrackingService` from an explicit Container."""
     return ImplementationTrackingService(
         tracker=container.horizon_tracker,
         tracer=container.tracer,
         audit=container.audit,
-        review_router=container.review_router,
+        review_router=review_router or container.review_router,
     )
 
 
