@@ -60,7 +60,9 @@ GROUNDED_QA_SYSTEM = (
     "Return your result strictly as JSON matching the provided response schema with "
     "fields: answer (string), used_source_ids (array of source_id strings actually "
     "cited), confidence (number 0.0-1.0 reflecting how fully the passages support "
-    "the answer)."
+    "the answer), supported (boolean: true only when the passages address the question "
+    "and support the answer; false whenever the answer says the passages are "
+    "insufficient, do not address the question, or conflict)."
 )
 
 GROUNDED_QA_USER = (

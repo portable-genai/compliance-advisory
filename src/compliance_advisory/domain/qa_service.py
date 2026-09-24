@@ -7,8 +7,10 @@ Owns the standard answer pipeline and calls only ports. The pipeline, in order:
       -> guardrail.screen(INPUT)          [blocked -> audit BLOCKED + blocked Answer]
       -> retrieval.retrieve               [empty -> audit ESCALATED + hard refusal]
       -> grounding.ground (if enabled)
-      -> llm.generate(system + passages, structured {answer, used_source_ids, confidence})
-      -> assemble Answer + map used_source_ids back to retrieved Citations (keep page)
+      -> llm.generate(system + passages,
+                      structured {answer, used_source_ids, confidence, supported})
+      -> assemble Answer + map used_source_ids back to retrieved Citations (keep page);
+         an answer the model marks unsupported cites nothing and is capped at 0.2
       -> self-critique groundedness pass (second llm call) adjusts confidence/caveats
       -> HumanReviewPolicy sets requires_human_review
       -> guardrail.screen(OUTPUT)
@@ -58,8 +60,9 @@ _ANSWER_SCHEMA: dict[str, Any] = {
         "answer": {"type": "string"},
         "used_source_ids": {"type": "array", "items": {"type": "string"}},
         "confidence": {"type": "number"},
+        "supported": {"type": "boolean"},
     },
-    "required": ["answer", "used_source_ids", "confidence"],
+    "required": ["answer", "used_source_ids", "confidence", "supported"],
 }
 
 # JSON schema for the self-critique groundedness pass.
@@ -75,6 +78,13 @@ _CRITIQUE_SCHEMA: dict[str, Any] = {
 
 _BLOCKED_CAVEAT = "The request was blocked by the safety guardrail and was not answered."
 _UNSUPPORTED_CAVEAT = "The model returned no usable grounded answer; human review is required."
+_NOT_ADDRESSED_CAVEAT = (
+    "The indexed sources do not address this question, so no passage is cited; "
+    "human review is required."
+)
+#: The ceiling on an answer that says its own passages do not support it. The model's own
+#: number is kept when it is lower; it is never trusted to be higher.
+_UNSUPPORTED_CONFIDENCE_CAP = 0.2
 
 
 def _clamp(value: float) -> float:
@@ -192,19 +202,29 @@ class ComplianceQAService:
         answer_text = str(parsed.get("answer") or "").strip()
         used_ids = g.as_str_list(parsed.get("used_source_ids"))
         confidence = _clamp(parsed.get("confidence", 0.0))
+        # Only an explicit ``true`` counts: a missing or malformed flag is not a claim that
+        # the passages support the answer, so it takes the unsupported branch below.
+        supported = parsed.get("supported") is True
 
         # 6) Map used_source_ids back to retrieved Citations (preserve page).
         citations: tuple[Citation, ...] = g.citations_for_source_ids(used_ids, passages)
 
-        # Defensive: a model that returned nothing usable is treated as unsupported.
+        # An answer that says its passages do not address the question cites none of them.
+        # The model lists what it READ in used_source_ids even while saying none of it
+        # applies, and a consumer counting citations would take that for a grounded answer.
         caveats: list[str] = []
         if not answer_text:
             answer_text = (
                 "The available passages do not support a confident answer to this "
                 "question. Human review is recommended."
             )
-            confidence = min(confidence, 0.2)
             caveats.append(_UNSUPPORTED_CAVEAT)
+            supported = False
+        elif not supported:
+            caveats.append(_NOT_ADDRESSED_CAVEAT)
+        if not supported:
+            citations = ()
+            confidence = min(confidence, _UNSUPPORTED_CONFIDENCE_CAP)
 
         # 7) Self-critique groundedness pass (second LLM call) adjusts confidence.
         confidence, critique_caveats = self._self_critique(

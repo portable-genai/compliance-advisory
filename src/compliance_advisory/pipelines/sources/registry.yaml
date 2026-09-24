@@ -77,6 +77,43 @@ sources:
       - fairness
       - governance
 
+  # AML/CFT: what `cdd-sow-research` asks on every dossier. Without these the corpus held
+  # no AML/CFT instrument and every CDD question was answered, correctly, as not addressed.
+  - id: mas-notice-626-aml-cft-banks-2025
+    regulator: MAS
+    jurisdiction: SG
+    title: >-
+      MAS Notice 626 Prevention of Money Laundering and Countering the Financing of
+      Terrorism (Banks)
+    url: https://www.mas.gov.sg/-/media/amld-amendments---30-june-2025/mas-notice-626.pdf
+    doc_type: notice
+    version: 2025-06-30
+    published_date: "2024-03-28"
+    topics:
+      - aml-cft
+      - customer-due-diligence
+      - beneficial-ownership
+      - enhanced-due-diligence
+      - politically-exposed-persons
+      - suspicious-transaction-reporting
+
+  - id: mas-notice-626-guidelines-2025
+    regulator: MAS
+    jurisdiction: SG
+    title: >-
+      Guidelines to MAS Notice 626 on Prevention of Money Laundering and Countering the
+      Financing of Terrorism
+    url: https://www.mas.gov.sg/-/media/amld-amendments---30-june-2025/guidelines-to-mas-notice-626.pdf
+    doc_type: guideline
+    version: 2025-07-01
+    published_date: "2024-03-28"
+    topics:
+      - aml-cft
+      - customer-due-diligence
+      - source-of-wealth
+      - risk-based-approach
+      - enhanced-due-diligence
+
   # ----------------------------------------------------------------------------- #
   # HKMA — Hong Kong Monetary Authority (HK)
   # ----------------------------------------------------------------------------- #
