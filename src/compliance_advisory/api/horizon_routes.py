@@ -35,6 +35,7 @@ from ..domain.horizon import (
     TenantMismatchError,
 )
 from . import deps
+from .disclosure import disclose
 from .horizon_schemas import (
     HorizonScanRequest,
     HorizonScanResponse,
@@ -54,6 +55,7 @@ def scan(
     request: HorizonScanRequest,
     principal: CurrentPrincipal,
     service: Annotated[HorizonScanService, Depends(deps.get_horizon_scan_service)],
+    routing: deps.RequestReviewRouter,
 ) -> HorizonScanResponse:
     """Detect every regulatory change in the corpus and assess, route and track it."""
     try:
@@ -67,7 +69,7 @@ def scan(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
-    return HorizonScanResponse.from_domain(result)
+    return disclose(HorizonScanResponse.from_domain(result), routing=routing)
 
 
 @router.get("/items", response_model=ImplementationItemsResponse)
@@ -98,6 +100,7 @@ def update_status(
     request: StatusUpdateRequest,
     principal: CurrentPrincipal,
     service: Annotated[ImplementationTrackingService, Depends(deps.get_horizon_tracking_service)],
+    routing: deps.RequestReviewRouter,
 ) -> ImplementationItemModel:
     """Advance a tracked change, gated on the verified tenant.
 
@@ -126,7 +129,7 @@ def update_status(
         raise _forbidden(exc) from exc
     except ImplementationItemNotFoundError as exc:
         raise _not_found(exc) from exc
-    return ImplementationItemModel.from_domain(item)
+    return disclose(ImplementationItemModel.from_domain(item), routing=routing)
 
 
 # --------------------------------------------------------------------------- #

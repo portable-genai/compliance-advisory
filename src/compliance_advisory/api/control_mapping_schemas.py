@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from ..domain.control_mapping import models as m
 from ..domain.serialization import to_jsonable
+from .schemas import ReviewRoutingValue
 
 # --------------------------------------------------------------------------- #
 # Shared projections
@@ -193,6 +194,9 @@ class EvidencePackResponse(BaseModel):
     coverage_summary: dict[str, int] = Field(default_factory=dict)
     generated_at: str
     requires_human_review: bool = True
+
+    #: What happened to the human-review hand-off: routed, failed, off or not_required.
+    review_routing: ReviewRoutingValue = "not_required"
 
     @classmethod
     def from_domain(cls, pack: m.EvidencePack) -> EvidencePackResponse:

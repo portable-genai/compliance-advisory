@@ -170,10 +170,17 @@ endpoint; that is the failure this guard exists to catch.
 - **Hard stop:** to take the assistant offline, scale the API to zero and/or undeploy the
   Agent Runtime `reasoningEngine`. The WORM audit bucket and ledger persist independently, so
   no audit history is lost.
-- **Pause horizon escalations:** horizon assessments route to `human-review-console` through the same
-  `ReviewRouterPort` as every other escalation. Unsetting `HUMAN_REVIEW_URL` stops the
-  submissions; the ESCALATED audit rows are still written, so nothing is lost, and the
-  scans keep returning their decisions.
+- **Pause escalations:** every escalation, horizon assessments included, routes to
+  `human-review-console` through the one `ReviewRouterPort`. Set
+  `COMPLIANCE_REVIEW_ROUTING=off` to stop the submissions; the ESCALATED audit rows are still
+  written, so nothing is lost, and every response reports `review_routing: "off"` so the user
+  is told the item is not queued. Unsetting `HUMAN_REVIEW_URL` no longer pauses anything:
+  under `gcp` or `platform` with routing on, the process refuses to boot without it.
+- **Runtime controls:** `COMPLIANCE_GUARDRAIL`, `COMPLIANCE_PII_REDACTION` and
+  `COMPLIANCE_REVIEW_ROUTING` each switch one cheap control, read in three states: unset is on,
+  `true`/`false` (or `on`/`off`) wins, and an emptied or unrecognised value refuses at boot. A
+  process with any of them off logs one warning at startup naming each. A response built from
+  input that redaction changed carries `input_redacted: true`, and the console says so.
 - **Block a category:** tighten the Model Armor template (`model_armor.template_id`) to deny
   the offending category; screening applies on the next request with no redeploy.
 

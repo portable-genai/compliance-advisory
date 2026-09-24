@@ -45,13 +45,30 @@ resource "google_data_loss_prevention_inspect_template" "compliance" {
       info_type {
         name = "SG_NRIC_FIN"
       }
-      likelihood = "LIKELY"
+      likelihood = "VERY_LIKELY"
       regex {
         pattern = "[STFGM][0-9]{7}[A-Z]"
       }
     }
 
-    min_likelihood = "POSSIBLE"
+    # Tuned against false positives (runtime-control contract, 2026-09-24): regulatory text
+    # names regulators and instruments, which POSSIBLE took for people. Only LIKELY findings
+    # are masked, and a PERSON_NAME finding containing regulatory vocabulary is excluded.
+    rule_set {
+      info_types {
+        name = "PERSON_NAME"
+      }
+      rules {
+        exclusion_rule {
+          matching_type = "MATCHING_TYPE_PARTIAL_MATCH"
+          regex {
+            pattern = "(?i)\\b(MAS|HKMA|APRA|JFSA|FSA|FATF|BCBS|Basel|NIST|FEAT|Monetary Authority|Notice|Guidelines?|Circular|Standard|CPS|CPG|SPM|Prudential|Regulation)\\b"
+          }
+        }
+      }
+    }
+
+    min_likelihood = "LIKELY"
     include_quote  = false # never echo the matched PII back out (P-04)
   }
 }

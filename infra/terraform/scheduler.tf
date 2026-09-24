@@ -69,6 +69,16 @@ resource "google_cloud_run_v2_job" "freshness_refresh" {
           name  = "COMPLIANCE_DLP_DEIDENTIFY_TEMPLATE"
           value = google_data_loss_prevention_deidentify_template.compliance.id
         }
+        env {
+          name  = "COMPLIANCE_PII_REDACTION"
+          value = tostring(var.pii_redaction_enabled)
+        }
+        # The refresh job ingests published regulation and escalates nothing, so it states
+        # routing off rather than naming a review console it would never call.
+        env {
+          name  = "COMPLIANCE_REVIEW_ROUTING"
+          value = "false"
+        }
       }
     }
   }

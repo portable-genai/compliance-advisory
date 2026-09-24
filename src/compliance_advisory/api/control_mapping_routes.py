@@ -40,6 +40,7 @@ from .control_mapping_schemas import (
     MapRequest,
     ScopeRequest,
 )
+from .disclosure import disclose
 from .security import CurrentPrincipal
 
 router = APIRouter(tags=["control-mapping"])
@@ -69,6 +70,7 @@ def evidence_pack(
     request: ScopeRequest,
     principal: CurrentPrincipal,
     service: Annotated[EvidencePackService, Depends(deps.get_evidence_service)],
+    routing: deps.RequestReviewRouter,
 ) -> EvidencePackResponse:
     """Assemble the regulator-grade evidence pack for a scope (always human-reviewed)."""
     try:
@@ -80,7 +82,7 @@ def evidence_pack(
         )
     except (RequirementsEmptyError, PostureUnavailableError) as exc:
         raise _unprocessable(exc) from exc
-    return EvidencePackResponse.from_domain(pack)
+    return disclose(EvidencePackResponse.from_domain(pack), routing=routing)
 
 
 @router.post("/gaps", response_model=GapsResponse)

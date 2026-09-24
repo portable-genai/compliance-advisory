@@ -32,6 +32,7 @@ const EMPTY_ARTIFACTS: ArtifactState = {
   controlMapping: null,
   gaps: null,
   evidencePack: null,
+  inputRedacted: {},
 };
 
 let msgSeq = 0;
@@ -141,12 +142,16 @@ export default function Page() {
         let obs: Observability | null = null;
 
         if (mode === "answer") {
-          const { data, observability } = await api.ask({
+          const { data, observability, inputRedacted } = await api.ask({
             question: text,
             grounding_enabled: groundingEnabled,
             filters: filterRecord,
           });
-          setArtifacts((prev) => ({ ...prev, answer: data }));
+          setArtifacts((prev) => ({
+            ...prev,
+            answer: data,
+            inputRedacted: { ...prev.inputRedacted, answer: inputRedacted },
+          }));
           obs = mergeObservability(observability, {
             confidence: data.confidence,
             decision: data.requires_human_review ? "escalated" : "allowed",
@@ -156,11 +161,15 @@ export default function Page() {
           }${data.requires_human_review ? " · human review required" : ""}.`;
           setActiveTab("answer");
         } else if (mode === "checklist") {
-          const { data, observability } = await api.checklist({
+          const { data, observability, inputRedacted } = await api.checklist({
             use_case: text,
             filters: filterRecord,
           });
-          setArtifacts((prev) => ({ ...prev, checklist: data }));
+          setArtifacts((prev) => ({
+            ...prev,
+            checklist: data,
+            inputRedacted: { ...prev.inputRedacted, checklist: inputRedacted },
+          }));
           obs = mergeObservability(observability, {
             decision: data.requires_human_review ? "escalated" : "allowed",
           });
@@ -169,11 +178,15 @@ export default function Page() {
           }${data.requires_human_review ? " · human review required" : ""}.`;
           setActiveTab("checklist");
         } else if (mode === "testcases") {
-          const { data, observability } = await api.testcases({
+          const { data, observability, inputRedacted } = await api.testcases({
             use_case: text,
             filters: filterRecord,
           });
-          setArtifacts((prev) => ({ ...prev, testcases: data }));
+          setArtifacts((prev) => ({
+            ...prev,
+            testcases: data,
+            inputRedacted: { ...prev.inputRedacted, testcases: inputRedacted },
+          }));
           obs = mergeObservability(observability, {
             decision: data.length ? "escalated" : "allowed",
           });
@@ -182,11 +195,15 @@ export default function Page() {
           } · human review required.`;
           setActiveTab("testcases");
         } else if (mode === "regulator_questions") {
-          const { data, observability } = await api.regulatorQuestions({
+          const { data, observability, inputRedacted } = await api.regulatorQuestions({
             use_case: text,
             filters: filterRecord,
           });
-          setArtifacts((prev) => ({ ...prev, regulatorQuestions: data }));
+          setArtifacts((prev) => ({
+            ...prev,
+            regulatorQuestions: data,
+            inputRedacted: { ...prev.inputRedacted, regulator_questions: inputRedacted },
+          }));
           obs = mergeObservability(observability, { decision: "allowed" });
           summary = `${data.length} anticipated regulator / CRO question${
             data.length === 1 ? "" : "s"

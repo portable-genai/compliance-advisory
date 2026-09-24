@@ -53,3 +53,6 @@ additional_serving_service_accounts = []
 # `/api@sha256:<digest>`: <region>-docker.pkg.dev/<project>/compliance-advisory/api@sha256:...
 corpus_refresh_image          = ""
 cloud_run_deletion_protection = true
+
+# Cheap runtime controls stay on in the reference; say so rather than inheriting the default.
+pii_redaction_enabled = true

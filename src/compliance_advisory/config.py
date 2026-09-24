@@ -10,6 +10,7 @@ convention: ``Adapter(settings: Settings)``.
 from __future__ import annotations
 
 import importlib
+import logging
 import os
 import re
 from collections.abc import Mapping
@@ -23,7 +24,7 @@ from hex_service_kit.netdefaults import ConfiguredEmptyError, EnvSetting, read_e
 
 from .domain.horizon.policy import HorizonPolicyConfig
 from .domain.policy import CompliancePolicyConfig
-from .envread import setting_or_default
+from .envread import boolean_setting, optional_setting, setting_or_default
 from .ports.identity import CLIENT_ASSERTED, declared_end_user_auth
 
 _ENV_PATTERN = re.compile(r"\$\{([A-Z0-9_]+)(?::-(.*?))?\}")
@@ -196,6 +197,46 @@ class AlloyDBSettings:
     horizon_table: str = "horizon_tracking"
 
 
+#: The environment variables that switch each cheap runtime control, read in three states:
+#: unset is ON (the reference posture keeps cheap controls on), a boolean value wins, and an
+#: emptied or unrecognised value refuses at boot. See the fleet's runtime-control contract.
+GUARDRAIL_ENV = "COMPLIANCE_GUARDRAIL"
+PII_REDACTION_ENV = "COMPLIANCE_PII_REDACTION"
+REVIEW_ROUTING_ENV = "COMPLIANCE_REVIEW_ROUTING"
+#: The human-review-console base URL the review router submits to. Required at boot under a
+#: networked profile while review routing is on, so a missing console is a named refusal
+#: rather than a hand-off that fails on every escalation.
+HUMAN_REVIEW_URL_ENV = "HUMAN_REVIEW_URL"
+
+_log = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class ControlSwitches:
+    """Which cheap runtime controls this process runs. Every one defaults on."""
+
+    guardrail: bool = True
+    pii_redaction: bool = True
+    review_routing: bool = True
+
+    @classmethod
+    def from_env(cls) -> ControlSwitches:
+        return cls(
+            guardrail=boolean_setting(GUARDRAIL_ENV, default=True),
+            pii_redaction=boolean_setting(PII_REDACTION_ENV, default=True),
+            review_routing=boolean_setting(REVIEW_ROUTING_ENV, default=True),
+        )
+
+    def switched_off(self) -> tuple[str, ...]:
+        """The environment variables of every control that is off, for the startup warning."""
+        states = (
+            (GUARDRAIL_ENV, self.guardrail),
+            (PII_REDACTION_ENV, self.pii_redaction),
+            (REVIEW_ROUTING_ENV, self.review_routing),
+        )
+        return tuple(name for name, on in states if not on)
+
+
 @dataclass(frozen=True)
 class ModelArmorSettings:
     template_id: str = "compliance-guardrail"
@@ -363,6 +404,7 @@ class Settings:
     agent_search: AgentSearchSettings = field(default_factory=AgentSearchSettings)
     alloydb: AlloyDBSettings = field(default_factory=AlloyDBSettings)
     model_armor: ModelArmorSettings = field(default_factory=ModelArmorSettings)
+    controls: ControlSwitches = field(default_factory=ControlSwitches)
     dlp: DlpSettings = field(default_factory=DlpSettings)
     posture: PostureSettings = field(default_factory=PostureSettings)
     logging: LoggingSettings = field(default_factory=LoggingSettings)
@@ -455,7 +497,39 @@ class Settings:
         reserved = {"profile", "profile_explicit"}
         known = {f for f in Settings.__dataclass_fields__ if f not in nested and f not in reserved}
         flat: dict[str, Any] = {k: v for k, v in raw.items() if k in known}
-        return Settings(profile=choice.profile, profile_explicit=choice.explicit, **flat, **nested)
+        settings = Settings(
+            profile=choice.profile,
+            profile_explicit=choice.explicit,
+            controls=ControlSwitches.from_env(),
+            **flat,
+            **nested,
+        )
+        _refuse_unconfigured_controls(settings)
+        return settings
+
+
+def _refuse_unconfigured_controls(settings: Settings) -> None:
+    """A control that is on under a networked profile must be able to work, checked at boot.
+
+    Review routing on with no console named used to fail every hand-off silently, one
+    escalation at a time; the guardrail on with no template would build a malformed Model
+    Armor URL at the first request. Both are configuration errors, so both refuse here and
+    say how to either configure the control or switch it off out loud.
+    """
+    if settings.profile not in _MANAGED_PROFILES:
+        return
+    controls = settings.controls
+    if controls.review_routing and optional_setting(HUMAN_REVIEW_URL_ENV) is None:
+        raise ConfiguredEmptyError(
+            f"Review routing is on under profile {settings.profile!r} but {HUMAN_REVIEW_URL_ENV} "
+            f"is not set. Name the human-review-console base URL, or set "
+            f"{REVIEW_ROUTING_ENV}=off to run without routing."
+        )
+    if controls.guardrail and not settings.model_armor.template_id.strip():
+        raise ConfiguredEmptyError(
+            f"The guardrail is on under profile {settings.profile!r} but no Model Armor "
+            f"template is configured. Name one, or set {GUARDRAIL_ENV}=off."
+        )
 
 
 def instantiate(dotted: str, settings: Settings) -> Any:
@@ -511,10 +585,18 @@ class Container:
 
     @cached_property
     def guardrail(self) -> Any:
+        if not self.settings.controls.guardrail:
+            from .adapters.controls import DisabledGuardrail
+
+            return DisabledGuardrail(self.settings)
         return self._bind("guardrail")
 
     @cached_property
     def redaction(self) -> Any:
+        if not self.settings.controls.pii_redaction:
+            from .adapters.controls import DisabledRedaction
+
+            return DisabledRedaction(self.settings)
         return self._bind("redaction")
 
     @cached_property
@@ -563,6 +645,10 @@ class Container:
 
     @cached_property
     def review_router(self) -> Any:
+        if not self.settings.controls.review_routing:
+            from .adapters.controls import DisabledReviewRouter
+
+            return DisabledReviewRouter(self.settings)
         return self._bind("review_router")
 
     @cached_property
@@ -577,7 +663,11 @@ class Container:
 
 
 def build_container(settings: Settings | None = None) -> Container:
-    return Container(settings or Settings.load())
+    settings = settings or Settings.load()
+    switched_off = settings.controls.switched_off()
+    if switched_off:
+        _log.warning("runtime controls switched off: %s", ", ".join(switched_off))
+    return Container(settings)
 
 
 def identity_adapter_class(settings: Settings) -> type:

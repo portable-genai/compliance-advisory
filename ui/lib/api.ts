@@ -77,6 +77,8 @@ export class ApiError extends Error {
 export interface ArtifactResult<T> {
   data: T;
   observability: Observability | null;
+  /** Redaction changed the user's input before the model saw it. */
+  inputRedacted: boolean;
 }
 
 /** Filters the left rail can apply to a request. */
@@ -163,20 +165,21 @@ function unwrap<T>(raw: unknown, keys: string[]): ArtifactResult<T> {
       (obj.observability as Observability | undefined) ??
       (obj.governance as Observability | undefined) ??
       null;
+    const inputRedacted = obj.input_redacted === true;
     for (const k of keys) {
       const candidate = obj[k];
       // Artifact payloads are objects or arrays. A bare Answer also has an `answer` STRING
       // field, so treating every matching key as an envelope unwraps the response to plain text
       // and crashes the renderer when it reads citations. Only structured values are envelopes.
       if (candidate !== null && typeof candidate === "object") {
-        return { data: candidate as T, observability };
+        return { data: candidate as T, observability, inputRedacted };
       }
     }
     // No nesting key matched: the object itself is the payload. Still surface
     // any sibling observability block if one was present.
-    return { data: raw as T, observability };
+    return { data: raw as T, observability, inputRedacted };
   }
-  return { data: raw as T, observability: null };
+  return { data: raw as T, observability: null, inputRedacted: false };
 }
 
 function withTimeout(signal?: AbortSignal, ms = 60_000): AbortSignal {
@@ -234,7 +237,7 @@ export async function testcases(
     signal: withTimeout(signal),
   });
   const raw = await parseJsonOrThrow(res);
-  if (Array.isArray(raw)) return { data: raw as TestCase[], observability: null };
+  if (Array.isArray(raw)) return { data: raw as TestCase[], observability: null, inputRedacted: false };
   return unwrap<TestCase[]>(raw, ["testcases", "test_cases", "items", "data"]);
 }
 
@@ -250,7 +253,7 @@ export async function regulatorQuestions(
   });
   const raw = await parseJsonOrThrow(res);
   if (Array.isArray(raw))
-    return { data: raw as RegulatorQuestion[], observability: null };
+    return { data: raw as RegulatorQuestion[], observability: null, inputRedacted: false };
   return unwrap<RegulatorQuestion[]>(raw, [
     "regulator_questions",
     "questions",

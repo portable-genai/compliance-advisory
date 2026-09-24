@@ -448,3 +448,9 @@ variable "cmek_enabled" {
     the right answer: the stores it bound stay bound.
   EOT
 }
+
+variable "pii_redaction_enabled" {
+  description = "Switch PII redaction on the corpus refresh job (COMPLIANCE_PII_REDACTION). A cheap runtime control: on in the reference, reversible, so it takes a default."
+  type        = bool
+  default     = true
+}

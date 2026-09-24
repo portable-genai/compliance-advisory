@@ -17,6 +17,7 @@ import { RegulatorQuestionsView } from "./RegulatorQuestionsView";
 import { MappingView } from "./MappingView";
 import { GapView } from "./GapView";
 import { EvidencePackView } from "./EvidencePackView";
+import { RedactionNotice } from "./ui";
 
 export interface ArtifactState {
   answer: Answer | null;
@@ -26,6 +27,8 @@ export interface ArtifactState {
   controlMapping: ControlMapping[] | null;
   gaps: ControlGap[] | null;
   evidencePack: EvidencePack | null;
+  /** Per artifact: redaction changed the user's input before the model saw it. */
+  inputRedacted: Partial<Record<ArtifactKind, boolean>>;
 }
 
 const TABS: { key: ArtifactKind; label: string }[] = [
@@ -134,6 +137,7 @@ export function ArtifactTabs({
       </div>
 
       <div className="scroll-thin flex-1 overflow-y-auto px-1 py-4">
+        {state.inputRedacted[active] && <RedactionNotice />}
         {active === "answer" && (
           <AnswerView answer={state.answer} streaming={streaming} />
         )}

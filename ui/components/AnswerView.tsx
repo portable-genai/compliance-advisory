@@ -33,7 +33,10 @@ export function AnswerView({
   return (
     <div className="space-y-4">
       {answer.requires_human_review && (
-        <HumanReviewBanner reason="Low-confidence or high-severity answer, flagged for checker sign-off (maker-checker, P-06)." />
+        <HumanReviewBanner
+          reason="Low-confidence or high-severity answer, flagged for checker sign-off (maker-checker, P-06)."
+          routing={answer.review_routing}
+        />
       )}
 
       <div className="rounded-lg border border-ink-200 bg-white p-4 shadow-sm">
