@@ -437,8 +437,9 @@ class FakeLLMAdapter:
       and turn them into the answer prose;
     * it cites **only** the ``source_id`` headers actually present in the PASSAGES block
       (never invents one), exactly as the citation rules demand;
-    * it returns strict JSON (``answer`` / ``used_source_ids`` / ``confidence``) so the
-      service's ``parse_structured`` + ``citations_for_source_ids`` mapping is exercised.
+    * it returns strict JSON (``answer`` / ``used_source_ids`` / ``confidence`` /
+      ``supported``) so the service's ``parse_structured`` + ``citations_for_source_ids``
+      mapping is exercised.
 
     Because it cites every retrieved source, the citation-accuracy scorer is a genuine test
     of whether retrieval surfaced the golden must-cite sources (recall) without the answer
@@ -462,6 +463,7 @@ class FakeLLMAdapter:
             "answer": " ".join(s for s in sentences if s),
             "used_source_ids": source_ids,
             "confidence": 0.9 if source_ids else 0.3,
+            "supported": bool(source_ids),
         }
         return LlmResponse(
             text=json.dumps(payload),
