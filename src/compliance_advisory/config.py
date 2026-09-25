@@ -160,10 +160,49 @@ def _interpolate(value: Any) -> Any:
 
 
 #: The profiles whose runtime is a managed cloud, for :attr:`Settings.runtime`. ``live`` is
-#: NOT one: since 2026-08-30 its models are the Gemini API, but the process, the index and
-#: the audit trail are all on the operator's machine, and the banner states WHERE while the
-#: model half states WHOSE. ``onprem`` is not one either.
+#: NOT one: the process, the index, the audit trail and (since 2026-09-23) the core model all
+#: sit on the operator's machine; only the optional web-grounding leg calls Gemini, and only
+#: while it is switched on. ``onprem`` is not one either.
 _MANAGED_PROFILES: frozenset[str] = frozenset({"gcp", "platform"})
+
+#: The one switch for the optional public-web grounding leg (the Gemini ``google_search``
+#: tool). Read through ``grounding_enabled:`` in ``config/settings.yaml``.
+GROUNDING_ENV = "COMPLIANCE_GROUNDING_ENABLED"
+
+#: The profiles whose grounding switch is ON when nobody set it. The managed profiles keep the
+#: reference posture they have always had; ``live`` (and every other profile) is OFF until an
+#: operator turns it on, because on the laptop lane the grounding leg is the ONE call that
+#: leaves the machine and the only one that needs cloud credentials.
+_GROUNDING_DEFAULT_ON: frozenset[str] = frozenset({"gcp", "platform"})
+
+_TRUE_WORDS = frozenset({"1", "true", "yes", "on"})
+_FALSE_WORDS = frozenset({"0", "false", "no", "off"})
+
+
+def _grounding_switch(raw: Any, profile: str) -> bool:
+    """Resolve ``grounding_enabled`` strictly, with a per-profile default for the unset case.
+
+    ``${COMPLIANCE_GROUNDING_ENABLED:-}`` interpolates to a STRING, and this field used to take
+    it as-is: ``"false"`` is a non-empty string, so the documented kill-switch
+    (``COMPLIANCE_GROUNDING_ENABLED=false``) left grounding on. A literal YAML boolean is taken
+    as written, an empty result (the variable unset; an emptied one already refused in
+    interpolation) takes the profile default, and anything else that is not a boolean word
+    refuses at boot rather than being read as either answer.
+    """
+    if isinstance(raw, bool):
+        return raw
+    text = "" if raw is None else str(raw).strip()
+    if not text:
+        return profile in _GROUNDING_DEFAULT_ON
+    word = text.casefold()
+    if word in _TRUE_WORDS:
+        return True
+    if word in _FALSE_WORDS:
+        return False
+    raise ValueError(
+        f"{GROUNDING_ENV} (grounding_enabled) must be one of "
+        f"{sorted(_TRUE_WORDS | _FALSE_WORDS)}, got {text!r}"
+    )
 
 
 @dataclass(frozen=True)
@@ -303,14 +342,14 @@ class LocalSettings:
 
 @dataclass(frozen=True)
 class LiveSettings:
-    """The ``live`` profile's generation budget (the model itself is the Gemini API).
+    """The ``live`` profile's generation budget: the ceiling on one local-model answer.
 
-    The profile carries no model-server settings. It pairs Gemini generation with the
-    REAL regulatory corpus ingested by ``pipelines.refresh_job`` from the regulators' own
-    published sources, so it already cannot be kept current without leaving the data
-    centre; a laptop generator beside that would be a local-model claim the use case
-    cannot support (org decision, 2026-08-30). Requires GOOGLE_CLOUD_PROJECT + ADC. The
-    deterministic local LLM and the fictional seed passages never appear under it.
+    The model itself is the fleet's local open-weight model, reached through the shared
+    ``hex_service_kit.localmodel`` client, which owns its own settings (``LOCAL_MODEL_URL``,
+    ``LOCAL_MODEL``, ``LOCAL_MODEL_TIMEOUT``). The profile pairs it with the REAL regulatory
+    corpus ingested by ``pipelines.refresh_job``. The deterministic local LLM and the
+    fictional seed passages never appear under it, and with web grounding off it needs no
+    cloud credentials at all (owner decision, 2026-09-23).
     """
 
     max_output_tokens: int = 2048
@@ -460,6 +499,11 @@ class Settings:
         """
         binding = self.adapters.get("llm", {}).get(self.profile, "")
         _, _, class_name = binding.partition(":")
+        if class_name == "LocalModelLLMAdapter":
+            # The kit owns the LOCAL_MODEL read; asking it keeps one home for that setting.
+            from hex_service_kit.localmodel import LocalModelSettings
+
+            return LocalModelSettings.from_env().model
         if class_name == "GeminiLLMAdapter":
             models = self.models
             return models.hard_reasoning if models.use_hard_reasoning else models.reasoning
@@ -503,12 +547,14 @@ class Settings:
         # ``profile_explicit`` come only from here, so a settings file cannot assert consent
         # on the operator's behalf by writing ``profile_explicit: true``.
         choice = resolve_profile(configured=str(raw.pop("profile", "") or ""))
-        reserved = {"profile", "profile_explicit"}
+        grounding_enabled = _grounding_switch(raw.pop("grounding_enabled", None), choice.profile)
+        reserved = {"profile", "profile_explicit", "grounding_enabled"}
         known = {f for f in Settings.__dataclass_fields__ if f not in nested and f not in reserved}
         flat: dict[str, Any] = {k: v for k, v in raw.items() if k in known}
         settings = Settings(
             profile=choice.profile,
             profile_explicit=choice.explicit,
+            grounding_enabled=grounding_enabled,
             controls=ControlSwitches.from_env(),
             **flat,
             **nested,

@@ -242,6 +242,18 @@ only on that branch, so the default local path stays SDK-free. There is no emula
 Agent Search, Gemini, Model Armor, DLP or Document AI, so those stay on the SDK-free
 workaround.
 
+### 4.1a `live` profile: the real corpus on the local model
+
+`live` answers from the REAL ingested regulatory corpus with the fleet's local open-weight
+model, reached through the shared `hex_service_kit.localmodel` client (`LOCAL_MODEL_URL`,
+default `http://127.0.0.1:8001/chat/completions`; `LOCAL_MODEL`, default
+`mlx-community/gemma-4-31b-it-8bit`). With web grounding off, the default here, it needs no
+cloud credentials. `COMPLIANCE_GROUNDING_ENABLED=true` adds the optional Gemini
+`google_search` leg, which needs `GOOGLE_CLOUD_PROJECT`, the `[gcp]` extra and application-default
+credentials; without them it reports itself unavailable and the core still answers. Start
+the model server with `python -m mlx_vlm.server --model mlx-community/gemma-4-31b-it-8bit --port 8001`,
+then see [`DEMO.md`](DEMO.md) Demo D.
+
 ### 4.2 `onprem` profile: fail-fast migration target
 
 The `onprem` profile binds every port to a placeholder adapter that **constructs cleanly
