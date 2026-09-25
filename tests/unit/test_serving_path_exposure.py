@@ -74,8 +74,12 @@ def _under_profile(
         monkeypatch.delenv(_PROFILE_ENV, raising=False)
     else:
         monkeypatch.setenv(_PROFILE_ENV, profile)
-    # A managed process with review routing on names its console, or it refuses to boot.
+    # A managed process with review routing on names its console, and under gcp the IAP edge
+    # audience it is reached through, or it refuses to boot.
     monkeypatch.setenv("HUMAN_REVIEW_URL", "https://review.example.test")
+    monkeypatch.setenv(
+        "HUMAN_REVIEW_IAP_AUDIENCE", "1234567890-fictionaledgeclient.apps.googleusercontent.com"
+    )
     monkeypatch.delenv(_INSECURE_DEMO_ENV, raising=False)
     importlib.reload(module.deps)
     return importlib.reload(module)
