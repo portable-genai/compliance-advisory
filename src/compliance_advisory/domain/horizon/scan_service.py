@@ -207,6 +207,7 @@ class HorizonScanService:
                 ),
                 model=None,  # adapter default => the configured reasoning model
                 response_schema=_NARRATE_SCHEMA,
+                temperature=None,  # narration: advisory prose over decisions already made
             )
             response = self._llm.generate(request)
             m.maybe_record_usage(self._tracer, response)

@@ -136,6 +136,9 @@ class ControlMappingService:
             user_content=user,
             model=None,  # adapter default => reasoning model gemini-3.5-flash
             response_schema=_MAP_SCHEMA,
+            # Pinned: the model classifies which controls cover which requirement, and the
+            # coverage computed from that is compared across runs and feeds the gap analysis.
+            temperature=0.0,
         )
         response = self._llm.generate(request)
         m.maybe_record_usage(self._tracer, response)

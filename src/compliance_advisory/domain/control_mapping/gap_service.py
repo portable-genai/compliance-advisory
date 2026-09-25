@@ -150,6 +150,7 @@ class GapAnalysisService:
             user_content=user,
             model=None,
             response_schema=_GAP_SCHEMA,
+            temperature=0.0,  # pinned: every gap carries a model-emitted severity label
         )
         response = self._llm.generate(request)
         m.maybe_record_usage(self._tracer, response)

@@ -11,7 +11,9 @@ when off, :meth:`ground` short-circuits to an empty list and makes no API call.
 
 Grounding citations are read from the response candidate's
 ``grounding_metadata.grounding_chunks[].web`` and mapped to domain
-:class:`WebCitation` objects.
+:class:`WebCitation` objects. A successful call notes both the model it called and
+that an online search tool was attached (``hex_service_kit.provenance``), which the
+API emits as ``X-Answered-By`` / ``X-Search-Used`` for the console's pills.
 
 All GenAI SDK imports are lazy so the on-prem / test profile imports this module
 without ``google-genai`` installed.
@@ -20,6 +22,8 @@ without ``google-genai`` installed.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+
+from hex_service_kit import provenance
 
 from ...config import Settings
 from ...domain.models import WebCitation
@@ -73,9 +77,14 @@ class GeminiGoogleSearchGroundingAdapter:
             contents=[types.Content(role="user", parts=[types.Part.from_text(text=query)])],
             config=types.GenerateContentConfig(
                 tools=[types.Tool(google_search=types.GoogleSearch())],
+                # Pinned: this call is retrieval. Its text is discarded and only the search
+                # results are extracted, as citations the answer is compared against.
                 temperature=0.0,
             ),
         )
+        # The google_search tool was attached to THIS call, so it searched.
+        provenance.note_model(self._model)
+        provenance.note_search()
 
         return self._extract_citations(response, max_results)
 

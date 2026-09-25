@@ -112,6 +112,9 @@ class ChecklistService:
             user_content=user,
             model=None,
             response_schema=_CHECKLIST_SCHEMA,
+            # Pinned: each item carries a model-emitted severity LABEL (see coerce_severity),
+            # so it is labelling, and one model must label one page the same way twice.
+            temperature=0.0,
         )
         response = self._llm.generate(request)
         g.maybe_record_usage(self._tracer, response)

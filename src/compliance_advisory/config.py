@@ -165,6 +165,11 @@ def _interpolate(value: Any) -> Any:
 #: while it is switched on. ``onprem`` is not one either.
 _MANAGED_PROFILES: frozenset[str] = frozenset({"gcp", "platform"})
 
+#: The name the ``local`` profile's deterministic generator goes by: what ``generator_model``
+#: reports under it, and what that adapter notes as the model that answered, spelled once so
+#: the configured pill and the answered pill can never disagree about the stub.
+OFFLINE_STUB_MODEL = "deterministic-offline-stub"
+
 #: The one switch for the optional public-web grounding leg (the Gemini ``google_search``
 #: tool). Read through ``grounding_enabled:`` in ``config/settings.yaml``.
 GROUNDING_ENV = "COMPLIANCE_GROUNDING_ENABLED"
@@ -213,8 +218,6 @@ class ModelSettings:
     location: str = "us"
     reasoning: str = "gemini-3.5-flash"
     triage: str = "gemini-3.5-flash"
-    hard_reasoning: str = "gemini-3.5-flash"  # Preview — feature-flagged off by default
-    use_hard_reasoning: bool = False
 
 
 @dataclass(frozen=True)
@@ -477,7 +480,7 @@ class Settings:
 
     @property
     def runtime(self) -> str:
-        """Where this process is running, as the UI banner states it: ``gcp`` or ``local``.
+        """Where this process is running, as the UI's model pill states it: ``gcp`` or ``local``.
 
         Derived from the profile, never sniffed from the environment. A console that read
         its runtime from ``window.location`` would be right until the deployment served
@@ -489,11 +492,18 @@ class Settings:
 
     @property
     def generator_model(self) -> str:
-        """Which model answers, for the UI banner (org decision, 2026-08-30).
+        """WHICH model the bound generator would call, as the UI's model pill first states it.
+
+        The pill shows this until an answer arrives, then the model that ANSWERED
+        (``X-Answered-By``, noted by the adapter itself). So this must be the model the adapter
+        calls: under ``gcp`` the setting its call reads (``request.model or
+        models.reasoning``), never a model a flag could swap in. A resolver once named a
+        stronger model whenever a hard-reasoning flag was set, while the adapter never read the
+        flag; the flag and that second model id are both gone.
 
         Read off the LLM binding the container will actually build, not from a second
         field someone has to remember to update. A repo that rebinds ``llm`` for a profile
-        changes what the banner says in the same edit, which is the only way the two stay
+        changes what the pill says in the same edit, which is the only way the two stay
         true to each other: a settings string would be a claim ABOUT the binding rather
         than the binding.
         """
@@ -505,13 +515,12 @@ class Settings:
 
             return LocalModelSettings.from_env().model
         if class_name == "GeminiLLMAdapter":
-            models = self.models
-            return models.hard_reasoning if models.use_hard_reasoning else models.reasoning
+            return self.models.reasoning
         if class_name == "OnPremLLMAdapter":
             # The on-prem adapter is a fail-fast migration placeholder: it raises rather
             # than generating. Naming a model here would advertise one that never answers.
             return "onprem-not-implemented"
-        return "deterministic-offline-stub"
+        return OFFLINE_STUB_MODEL
 
     @property
     def exposure_profile(self) -> str:

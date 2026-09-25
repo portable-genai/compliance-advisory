@@ -57,7 +57,9 @@ Optional web grounding: add `COMPLIANCE_GROUNDING_ENABLED=true` (plus
 also carry Gemini `google_search` web citations. That is the only Gemini call under `live`;
 without credentials the leg logs that it is unavailable and the core answers without it.
 
-The banner at the top of every UI page states the runtime and the answering model.
+Two small pills at the top right of every UI page name the model: the configured one (dimmed,
+its tooltip says where the runtime sits) until an answer arrives, then the model that answered
+it. A second pill, `Search`, appears while the last answer used the web-grounding leg.
 
 Then ask anything through the UI or `POST /ask`; answers cite real source ids, real page
 numbers and the regulators' own URLs. To add an audience document:

@@ -575,6 +575,7 @@ def _inline_answer(adapters: _Adapters, example: GoldenExample) -> Answer:
         messages=(LlmMessage(role="user", content=example.question),),
         system_instruction="Answer only from the cited regulatory passages.",
         model=adapters.llm.model,
+        temperature=0.0,  # pinned: this answer is scored against a golden set
     )
     response = adapters.llm.generate(request)
     answer = Answer(

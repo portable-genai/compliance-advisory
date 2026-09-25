@@ -79,3 +79,54 @@ body {
   background: currentColor;
   animation: caret-blink 1s step-end infinite;
 }
+
+/* The model pills: which model answered the last request, and Search when it searched. Fixed at
+   the top right, clear of this console's own controls: standalone, they hang from the bottom
+   edge of the top bar, below its status badge and above the panel headings; embedded (no top
+   bar), they sit at the same height against the panel headers' bottom edge. Each pill carries
+   its own opaque background, so it reads over whatever scrolls beneath it. Colours are the ink
+   scale above, spelled out so the rule never depends on which theme variables a build emits. */
+.model-pills {
+  position: fixed;
+  top: 41px;
+  right: 10px;
+  z-index: 30;
+  display: flex;
+  gap: 6px;
+  max-width: calc(100vw - 20px);
+}
+
+.model-pills.embedded {
+  top: 52px;
+}
+
+.model-pill {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 9px;
+  border: 1px solid;
+  border-radius: 9999px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.model-pill.configured {
+  background: #f5f7fa;
+  border-color: #a6b6cc;
+  border-style: dashed;
+  color: #546b8b;
+}
+
+.model-pill.answered {
+  background: #131b27;
+  border-color: #131b27;
+  color: #fff;
+}
+
+.model-pill.search {
+  background: #047857;
+  border-color: #047857;
+  color: #fff;
+}
