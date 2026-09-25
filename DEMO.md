@@ -26,8 +26,8 @@ Step-by-step scripts for demoing `compliance-advisory` four ways:
 - **Demo D - The REAL corpus under the `live` profile** (the audience-facing demo): the
   same four artifacts grounded on the **real public instruments** (MAS TRM / Outsourcing /
   FEAT, APRA CPS 230 / CPG 230 / CPS 234, JFSA AI discussion papers, BCBS operational
-  resilience, NIST AI RMF) fetched from the regulators' own sites, with generation by
-  the Gemini API. Audience questions are typed live; audience documents are added
+  resilience, NIST AI RMF) fetched from the regulators' own sites, answered by the local
+  open-weight model on this machine. Audience questions are typed live; audience documents are added
   through the corpus upload (template downloadable in the UI).
 
 > Demo A / B / C run on a synthetic **fictional** corpus (clearly-invented MAS / HKMA /
@@ -44,14 +44,18 @@ Step-by-step scripts for demoing `compliance-advisory` four ways:
 #    those four sources (save the PDF from a browser; everything else ingests directly).
 python -m compliance_advisory.pipelines.refresh_job --full
 
-# 2. There is no local model server to start. Every model call in this profile is the
-#    Gemini API, because the corpus itself is fetched from the regulators' own sites and
-#    the profile cannot be kept current without leaving the data centre.
+# 2. Start the local model server (skip if one already answers on :8001). The live
+#    profile reaches it through the shared kit client: LOCAL_MODEL_URL / LOCAL_MODEL.
+python -m mlx_vlm.server --model mlx-community/gemma-4-31b-it-8bit --port 8001
 
-# 3. Serve under the live profile (generation needs a GCP project + application-default
-#    credentials).
-GOOGLE_CLOUD_PROJECT=<project> COMPLIANCE_PROFILE=live python -m compliance_advisory.api.app
+# 3. Serve under the live profile. No cloud credentials are needed.
+make run-api PROFILE=live
 ```
+
+Optional web grounding: add `COMPLIANCE_GROUNDING_ENABLED=true` (plus
+`GOOGLE_CLOUD_PROJECT`, the `[gcp]` extra and application-default credentials) and answers
+also carry Gemini `google_search` web citations. That is the only Gemini call under `live`;
+without credentials the leg logs that it is unavailable and the core answers without it.
 
 The banner at the top of every UI page states the runtime and the answering model.
 

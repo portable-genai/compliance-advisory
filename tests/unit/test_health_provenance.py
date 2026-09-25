@@ -18,6 +18,7 @@ import dataclasses
 
 import pytest
 from fastapi.testclient import TestClient
+from hex_service_kit.localmodel import DEFAULT_LOCAL_MODEL
 
 from compliance_advisory.api.app import app
 from compliance_advisory.config import Settings
@@ -53,9 +54,9 @@ def test_the_runtime_says_where_the_process_runs_not_whose_model_it_calls(
 ) -> None:
     """``live`` is the row that carries the distinction, and it reads ``local``.
 
-    Since 2026-08-30 every model call in the live profile is the Gemini API, so it would be
-    easy to call that runtime "GCP". It is not: the process, the corpus and the audit
-    trail are all on the operator's laptop.
+    Under ``live`` the optional web-grounding leg can call Gemini, so it would be easy to
+    call that runtime "GCP". It is not: the process, the corpus, the core model and the
+    audit trail are all on the operator's laptop.
     The banner states WHERE, and the model half states WHOSE, precisely so the two facts
     cannot be collapsed into one misleading sentence. ``onprem`` reads local for the same
     reason, and there it is the whole selling point.
@@ -67,21 +68,23 @@ def test_the_runtime_says_where_the_process_runs_not_whose_model_it_calls(
     ("profile", "expected"),
     [
         ("local", "deterministic-offline-stub"),
-        ("live", "gemini-3.5-flash"),
+        ("live", DEFAULT_LOCAL_MODEL),
         ("gcp", "gemini-3.5-flash"),
         ("platform", "gemini-3.5-flash"),
         ("onprem", "onprem-not-implemented"),
     ],
 )
 def test_the_model_is_read_off_the_binding_the_container_builds(
-    settings: Settings, profile: str, expected: str
+    settings: Settings, profile: str, expected: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """``live`` answers a Gemini model because it BINDS one, not because a string says so.
+    """``live`` names the local model because it BINDS the local-model adapter.
 
-    Before 2026-08-30 the live profile bound a Gemma build on a local model server. The
-    conversion changed one line in ``config/settings.yaml``; this row follows it because the
-    value is read from that line rather than kept beside it.
+    Between 2026-08-30 and 2026-09-23 the live profile bound Gemini, and this row read
+    ``gemini-3.5-flash``. Moving the core back to the local model changed one line in
+    ``config/settings.yaml``; this row follows it because the value is read from that line
+    rather than kept beside it.
     """
+    monkeypatch.delenv("LOCAL_MODEL", raising=False)
     assert dataclasses.replace(settings, profile=profile).generator_model == expected
 
 
