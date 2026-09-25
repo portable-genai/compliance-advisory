@@ -30,6 +30,7 @@ from compliance_advisory.api import deps
 from compliance_advisory.api.app import app
 from compliance_advisory.config import (
     GUARDRAIL_ENV,
+    HUMAN_REVIEW_IAP_AUDIENCE_ENV,
     HUMAN_REVIEW_URL_ENV,
     PII_REDACTION_ENV,
     REVIEW_ROUTING_ENV,
@@ -45,7 +46,7 @@ _SWITCHES = (GUARDRAIL_ENV, PII_REDACTION_ENV, REVIEW_ROUTING_ENV)
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in (*_SWITCHES, HUMAN_REVIEW_URL_ENV):
+    for name in (*_SWITCHES, HUMAN_REVIEW_URL_ENV, HUMAN_REVIEW_IAP_AUDIENCE_ENV):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("COMPLIANCE_PROFILE", "local")
 
@@ -116,6 +117,9 @@ def test_routing_on_under_gcp_without_a_console_refuses_at_boot(
 def test_routing_on_under_gcp_with_a_console_loads(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COMPLIANCE_PROFILE", "gcp")
     monkeypatch.setenv(HUMAN_REVIEW_URL_ENV, "https://review.example.test")
+    monkeypatch.setenv(
+        HUMAN_REVIEW_IAP_AUDIENCE_ENV, "1234567890-fictionaledgeclient.apps.googleusercontent.com"
+    )
     assert Settings.load().controls.review_routing is True
 
 

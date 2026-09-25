@@ -58,6 +58,8 @@ def _probe(profile: str) -> dict[str, Any]:
     env["GOOGLE_CLOUD_PROJECT"] = "demo-project"
     # A managed process with review routing on names its console, or it refuses to boot.
     env["HUMAN_REVIEW_URL"] = "https://review.example.test"
+    # Under gcp the console is reached through the portal's IAP edge, which needs its audience.
+    env["HUMAN_REVIEW_IAP_AUDIENCE"] = "1234567890-fictionaledgeclient.apps.googleusercontent.com"
     out = subprocess.run(
         [sys.executable, "-c", _PROBE.format(mod=_SERVED_MODULE)],
         capture_output=True,

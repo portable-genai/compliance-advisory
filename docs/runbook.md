@@ -176,6 +176,16 @@ endpoint; that is the failure this guard exists to catch.
   written, so nothing is lost, and every response reports `review_routing: "off"` so the user
   is told the item is not queued. Unsetting `HUMAN_REVIEW_URL` no longer pauses anything:
   under `gcp` or `platform` with routing on, the process refuses to boot without it.
+- **The console hand-off under `gcp` goes through the portal's IAP edge.** `HUMAN_REVIEW_URL` is
+  the console's edge path (`https://<edge-host>/apps/human-review-console/api`) and
+  `HUMAN_REVIEW_IAP_AUDIENCE` is the IAP OAuth client id that edge accepts. The router mints a
+  fresh ID token for that audience with the service's workload identity on every submission,
+  instead of sending `S2S_TOKEN`, and the console authenticates this service from the IAP
+  assertion the portal forwards (so this service account must be in the console's
+  `REVIEW_IAP_SERVICE_CALLERS_JSON` allowlist). Routing on under `gcp` refuses at boot unless
+  BOTH are set, naming both and `COMPLIANCE_REVIEW_ROUTING=off`, and refuses a backend-service
+  path (`/projects/.../backendServices/...`) as the audience. Unset elsewhere, the router keeps
+  the static `S2S_TOKEN` bearer.
 - **Runtime controls:** `COMPLIANCE_GUARDRAIL`, `COMPLIANCE_PII_REDACTION` and
   `COMPLIANCE_REVIEW_ROUTING` each switch one cheap control, read in three states: unset is on,
   `true`/`false` (or `on`/`off`) wins, and an emptied or unrecognised value refuses at boot. A
