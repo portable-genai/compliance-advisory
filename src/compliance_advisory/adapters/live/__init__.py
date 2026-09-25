@@ -9,6 +9,7 @@ trail stays on the machine.
 
 Gemini appears in exactly one place: the OPTIONAL web-grounding leg
 (:mod:`.grounding`), and only while ``COMPLIANCE_GROUNDING_ENABLED`` is on. With it off,
-which is the default here, the profile needs no cloud credentials at all. The UI provenance
-banner states that the runtime is local and names the local model that answers.
+which is the default here, the profile needs no cloud credentials at all. The console's model
+pill states that the runtime is local and names the local model that answered, and a second
+pill reads `Search` when the web-grounding leg ran.
 """

@@ -61,10 +61,11 @@ def coerce_severity(value: Any, default: Severity = Severity.MEDIUM) -> Severity
     is why the distinction is written down here rather than left to be re-derived.
 
     Two models reading one page of regulation will still label it differently, so this is not
-    something a paired comparison could hold to agreement. `temperature` is pinned at 0.0 so the
-    label is at least reproducible for one model; see
-    `tests/unit/test_grounded_requests_do_not_sample.py`. If this value is ever wired into a
-    decision, it stops being declared quality and belongs in the deterministic domain instead.
+    something a paired comparison could hold to agreement. `temperature` is pinned at 0.0 at
+    the two call sites that ask for this label (the checklist and the gap analysis) so it is at
+    least reproducible for one model; see `tests/unit/test_sampling_per_call.py`. If this value
+    is ever wired into a decision, it stops being declared quality and belongs in the
+    deterministic domain instead.
     """
     if isinstance(value, Severity):
         return value
@@ -216,13 +217,15 @@ def build_llm_request(
     model: str | None,
     response_schema: dict | None,
     thinking: ThinkingLevel = ThinkingLevel.HIGH,
-    temperature: float = 0.0,
+    temperature: float | None = None,
     max_output_tokens: int = 4096,
 ) -> LlmRequest:
     """Assemble an ``LlmRequest`` with a single user message and a system prompt.
 
     ``model=None`` lets the adapter pick its configured default (the reasoning model,
     ``gemini-3.5-flash``); thinking defaults to HIGH for grounded reasoning per SPEC.
+    ``temperature=None`` sends none: a caller whose output is extracted, classified, scored
+    or compared pins ``0.0``.
     """
     return LlmRequest(
         messages=(LlmMessage(role="user", content=user_content),),

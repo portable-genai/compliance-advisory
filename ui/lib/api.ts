@@ -375,9 +375,9 @@ export interface HealthStatus {
   ok: boolean;
   /** Active backend profile ("local" | "gcp" | "platform" | "onprem" | ""). */
   profile: string;
-  /** Where the service runs ("gcp" | "local" | ""), for the provenance banner. */
+  /** Where the service runs ("gcp" | "local" | ""), for the model pill's title. */
   runtime: string;
-  /** Which model answers, or the deterministic stub's name. Empty when unknown. */
+  /** Which model the bound generator calls, or the deterministic stub's name. Empty when unknown. */
   generatorModel: string;
   raw: unknown;
 }
@@ -402,8 +402,8 @@ export async function healthz(signal?: AbortSignal): Promise<HealthStatus> {
     const status = body.status;
     const profile = typeof body.profile === "string" ? body.profile : "";
     // Read defensively, exactly as `profile` is. An older backend that predates the
-    // provenance fields answers "" here, and the banner renders nothing rather than
-    // asserting a runtime it was never told.
+    // provenance fields answers "" here, and the model pills render nothing rather than
+    // asserting a runtime or a model they were never told.
     const runtime = typeof body.runtime === "string" ? body.runtime : "";
     const generatorModel =
       typeof body.generator_model === "string" ? body.generator_model : "";

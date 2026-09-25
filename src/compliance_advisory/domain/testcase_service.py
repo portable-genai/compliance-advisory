@@ -117,6 +117,7 @@ class TestCaseService:
             user_content=user,
             model=None,
             response_schema=_TESTCASE_SCHEMA,
+            temperature=None,  # drafting: test-case prose for a reviewer, not compared
         )
         response = self._llm.generate(request)
         g.maybe_record_usage(self._tracer, response)

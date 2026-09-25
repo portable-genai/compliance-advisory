@@ -120,7 +120,14 @@ Adding an adapter:
    must construct and fail explicitly rather than return empty success.
 4. Extend `tests/contract/test_port_parity.py` construction coverage and
    `tests/contract/test_behavioral_parity.py` for observable behavior.
-5. Add unit/fault tests, update the ports-to-adapters table in `ARCHITECTURE.md`, and run
+5. A model adapter notes what answered: after a successful call it calls
+   `hex_service_kit.provenance.note_model(<the model id it actually called>)`, and
+   `provenance.note_search()` only when an online search tool was attached to that call
+   (`api/app.py` emits them as `X-Answered-By` / `X-Search-Used` for the console's pills). It
+   omits `temperature` when the request's is `None`; pin `0.0` only at call sites whose output
+   is extracted, classified, scored or compared. See `tests/unit/test_answer_provenance.py` and
+   `tests/unit/test_sampling_per_call.py`.
+6. Add unit/fault tests, update the ports-to-adapters table in `ARCHITECTURE.md`, and run
    `make check` plus `make ui-check` when the surface is affected.
 
 Adding a port or sub-service:

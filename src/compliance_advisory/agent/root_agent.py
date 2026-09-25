@@ -115,9 +115,10 @@ def build_root_agent(settings: Settings | None = None) -> LlmAgent:
     if grounding_agent is not None:
         tools.append(AgentTool(agent=grounding_agent))
 
-    # thinking=high for the reasoning model (gemini-3.5-flash) per SPEC §3.
+    # thinking=high for the reasoning model (gemini-3.5-flash) per SPEC §3. No temperature:
+    # the root agent converses and drafts, so it samples freely; the tools it calls pin their
+    # own where their output is extracted, classified or scored.
     generate_content_config = types.GenerateContentConfig(
-        temperature=0.2,
         thinking_config=types.ThinkingConfig(thinking_budget=-1),
     )
 

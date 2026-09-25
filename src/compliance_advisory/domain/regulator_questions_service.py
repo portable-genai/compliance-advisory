@@ -132,6 +132,7 @@ class RegulatorQuestionService:
             user_content=user,
             model=None,
             response_schema=_REGULATOR_QUESTIONS_SCHEMA,
+            temperature=None,  # drafting: questions a reviewer reads, not compared
         )
         response = self._llm.generate(request)
         g.maybe_record_usage(self._tracer, response)

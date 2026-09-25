@@ -194,6 +194,9 @@ class ComplianceQAService:
             user_content=user,
             model=None,  # adapter default => reasoning model gemini-3.5-flash
             response_schema=_ANSWER_SCHEMA,
+            # Drafting: the answer is prose a reviewer reads (every answer is reviewed), so it
+            # samples freely. Nothing compares two runs of it.
+            temperature=None,
         )
         response = self._llm.generate(request)
         g.maybe_record_usage(self._tracer, response)
@@ -287,7 +290,9 @@ class ComplianceQAService:
             ),
             model=None,
             response_schema=_CRITIQUE_SCHEMA,
-            temperature=0.0,
+            # A judge: it can only lower confidence (the more conservative signal wins) and so
+            # only ever raises the review bar; it samples freely like any other judge.
+            temperature=None,
         )
         try:
             response = self._llm.generate(request)
