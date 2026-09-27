@@ -187,7 +187,7 @@ sequence diagram, and the runtime topology.
 | Guardrail | Model Armor | `modelarmor.asia-southeast1.rep.googleapis.com` `:sanitizeUserPrompt` / `:sanitizeModelResponse` |
 | PII redaction | Sensitive Data Protection / DLP | `google-cloud-dlp` `deidentifyContent` |
 | Audit (WORM) | Cloud Logging bucket, locked when the deployment states `worm_locked = true`, + Audit Logs | retention 2557 days (~7y) when locked; `DATA_READ` enabled |
-| Tracing | Cloud Trace via OpenTelemetry | `opentelemetry-exporter-gcp-trace`; content capture **OFF** |
+| Tracing | OpenTelemetry, OTLP to the agent-observability collector, which forwards to Cloud Trace | `hex_service_kit.tracing.build_tracer`; no direct Cloud Trace path; content capture **OFF** |
 | Eval gate | Gen AI evaluation service | `vertexai.Client(...).evals` |
 | Interop | A2A v1.0 + MCP 2026-07-28 | AgentCard `/.well-known/agent-card.json`; ADK `to_a2a`, `McpToolset` |
 | Freshness ledger + horizon tracker | Firestore Native (`gcp`); AlloyDB (`platform`) | `google-cloud-firestore`; `google-cloud-alloydb-connector[pg8000]` + SQLAlchemy |

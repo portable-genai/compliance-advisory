@@ -339,8 +339,8 @@ adapters:
     platform: compliance_advisory.adapters.platform.remote_audit:RemoteAuditAdapter
     onprem: compliance_advisory.adapters.onprem.audit:OnPremAuditAdapter
   tracer:
-    gcp: compliance_advisory.adapters.gcp.cloud_trace_tracer:CloudTraceTracerAdapter
-    platform: compliance_advisory.adapters.gcp.cloud_trace_tracer:CloudTraceTracerAdapter
+    gcp: compliance_advisory.adapters.gcp.tracer:CloudTracerAdapter
+    platform: compliance_advisory.adapters.gcp.tracer:CloudTracerAdapter
     local: compliance_advisory.adapters.local.tracer:LocalNoopTracerAdapter
     live: compliance_advisory.adapters.local.tracer:LocalNoopTracerAdapter
     onprem: compliance_advisory.adapters.onprem.tracer:OnPremTracerAdapter
