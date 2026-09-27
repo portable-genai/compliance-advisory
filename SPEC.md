@@ -250,6 +250,9 @@ All JSON field names mirror the domain dataclasses; enums are strings.
 **`agent-guardrail-gateway`** (backed by Model Armor + DLP)
 * `POST /v1/guardrail/screen` `{ "text": str, "direction": "input"|"output" }` →
   `{ "allowed": bool, "direction": str, "findings": [{"category":str,"confidence":str,"detail":str}], "sanitized_text": str|null, "reason": str }`
+  `allowed` must be the JSON literal `true` to allow. The client blocks on anything else,
+  including the string `"false"`, `1`, `null` or an absent key, and refuses a body that is not
+  a JSON object.
 * `POST /v1/redact` `{ "text": str }` → `{ "text": str, "findings": [{"info_type":str,"count":int}] }`
 * `GET /healthz` → `{ "status": "ok" }`
 

@@ -8,8 +8,23 @@ screening stays inside Singapore for MAS/HKMA/APRA/FSA residency.
 
 The adapter parses ``sanitizationResult.filterResults`` — the prompt-injection /
 jailbreak, Sensitive Data Protection (SDP), malicious-URI and Responsible-AI (RAI)
-filters — into :class:`GuardrailFinding` records and treats the request as *blocked*
-when any filter reports ``MATCH_FOUND``.
+filters — into :class:`GuardrailFinding` records.
+
+The verdict FAILS CLOSED. It is *allowed* only when ``sanitizationResult.filterMatchState``
+is ``NO_MATCH_FOUND`` AND ``sanitizationResult.invocationResult`` is ``SUCCESS``, each
+compared as the enum NAME the REST (proto3 JSON) mapping carries. Everything else blocks:
+
+- ``MATCH_FOUND``, however many filters ran;
+- an absent or empty ``sanitizationResult``, an absent ``filterMatchState`` and
+  ``FILTER_MATCH_STATE_UNSPECIFIED`` (proto3 JSON omits a zero enum, so UNSPECIFIED usually
+  arrives as an absent field): a screen that did not say "no match" has not said "allowed";
+- ``NO_MATCH_FOUND`` with ``invocationResult`` ``PARTIAL`` (some filters were skipped or
+  failed), ``FAILURE`` (all were), unspecified or absent. A skipped filter reports
+  ``EXECUTION_SKIPPED`` and no match, so padding a prompt past the prompt-injection filter's
+  token limit would otherwise get it through unscreened.
+
+An API error, including the per-call deadline, propagates to the domain, which refuses the
+request.
 
 All Google Cloud / auth SDK imports are lazy (inside ``__init__`` / methods) so the
 on-prem and test profiles import this module with no GCP SDK installed.
@@ -28,6 +43,12 @@ from ...domain.models import (
 )
 
 _MATCH_FOUND = "MATCH_FOUND"
+#: The one filter state that allows, compared by enum NAME.
+_NO_MATCH_FOUND = "NO_MATCH_FOUND"
+#: The one invocation result that allows: every configured filter ran. Compared by NAME.
+_ALL_FILTERS_RAN = "SUCCESS"
+#: Per-call deadline in seconds, so a stalled backend refuses the request instead of holding it.
+_TIMEOUT_SECONDS = 30.0
 
 # RAI sub-type key (as returned by Model Armor) -> domain GuardrailCategory.
 _RAI_CATEGORY: dict[str, GuardrailCategory] = {
@@ -71,17 +92,17 @@ class ModelArmorGuardrailAdapter:
             return {"userPromptData": {"text": text}}
         return {"modelResponseData": {"text": text}}
 
-    def _post(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def _post(self, url: str, payload: dict[str, Any]) -> Any:
         client = self._http_client()
         token = self._bearer_token()
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         }
-        resp = client.post(url, json=payload, headers=headers, timeout=30.0)
+        resp = client.post(url, json=payload, headers=headers, timeout=_TIMEOUT_SECONDS)
         resp.raise_for_status()
-        data: dict[str, Any] = resp.json()
-        return data
+        # Returned unvalidated: _parse treats any shape but a complete, clean screen as a block.
+        return resp.json()
 
     def _http_client(self) -> Any:
         import httpx  # lazy
@@ -107,32 +128,58 @@ class ModelArmorGuardrailAdapter:
         return token
 
     # -- response parsing -------------------------------------------------- #
-    def _parse(
-        self, response: dict[str, Any], direction: Direction, original_text: str
-    ) -> GuardrailVerdict:
-        result = response.get("sanitizationResult", {}) or {}
-        filter_results = result.get("filterResults", {}) or {}
+    def _parse(self, response: Any, direction: Direction, original_text: str) -> GuardrailVerdict:
+        """Map a sanitize response to a verdict: allowed ONLY on a complete, clean screen."""
+        result = response.get("sanitizationResult") if isinstance(response, dict) else None
+        if not isinstance(result, dict):
+            result = {}
+        filter_results = result.get("filterResults")
+        if not isinstance(filter_results, dict):
+            filter_results = {}
+        match_state = result.get("filterMatchState")
+        invocation = result.get("invocationResult")
+
+        if match_state == _NO_MATCH_FOUND and invocation == _ALL_FILTERS_RAN:
+            return GuardrailVerdict(
+                allowed=True,
+                direction=direction,
+                findings=(),
+                sanitized_text=self._extract_sanitized_text(filter_results, original_text),
+                reason="No blocking Model Armor filter matched.",
+            )
 
         findings: list[GuardrailFinding] = []
-        findings.extend(self._parse_pi_jailbreak(filter_results))
-        findings.extend(self._parse_sensitive_data(filter_results))
-        findings.extend(self._parse_malicious_uris(filter_results))
-        findings.extend(self._parse_rai(filter_results))
-
-        # Block when the top-level filter match state is MATCH_FOUND, falling back
-        # to "any finding present" when the aggregate field is absent.
-        match_state = result.get("filterMatchState")
-        allowed = match_state != _MATCH_FOUND if match_state is not None else not findings
-
-        sanitized_text = self._extract_sanitized_text(filter_results, original_text)
-        reason = self._reason(allowed, findings)
+        if match_state == _MATCH_FOUND:
+            # A match is a match however many filters ran: the block needs no complete screen.
+            findings.extend(self._parse_pi_jailbreak(filter_results))
+            findings.extend(self._parse_sensitive_data(filter_results))
+            findings.extend(self._parse_malicious_uris(filter_results))
+            findings.extend(self._parse_rai(filter_results))
+            if not findings:
+                findings.append(self._blocking_finding("Model Armor filter match."))
+            categories = ", ".join(sorted({f.category.value for f in findings}))
+            reason = f"Blocked by Model Armor: {categories}."
+        elif match_state == _NO_MATCH_FOUND:
+            findings.append(
+                self._blocking_finding(
+                    f"invocationResult={invocation or 'absent'}: not every filter ran."
+                )
+            )
+            reason = "Blocked: Model Armor returned no complete filter decision."
+        else:
+            findings.append(self._blocking_finding(f"filterMatchState={match_state or 'absent'}."))
+            reason = "Blocked: Model Armor returned no filter decision."
         return GuardrailVerdict(
-            allowed=allowed,
+            allowed=False,
             direction=direction,
             findings=tuple(findings),
-            sanitized_text=sanitized_text,
+            sanitized_text=None,
             reason=reason,
         )
+
+    @staticmethod
+    def _blocking_finding(detail: str) -> GuardrailFinding:
+        return GuardrailFinding(category=GuardrailCategory.OTHER, confidence="high", detail=detail)
 
     @staticmethod
     def _is_match(node: Any) -> TypeGuard[dict[str, Any]]:
@@ -230,10 +277,3 @@ class ModelArmorGuardrailAdapter:
             if isinstance(text, str) and text:
                 return text
         return original_text
-
-    @staticmethod
-    def _reason(allowed: bool, findings: list[GuardrailFinding]) -> str:
-        if allowed:
-            return "No blocking Model Armor filter matched."
-        categories = ", ".join(sorted({f.category.value for f in findings}))
-        return f"Blocked by Model Armor: {categories}." if categories else "Blocked."
