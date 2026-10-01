@@ -26,6 +26,15 @@ variables {
   # file were written under the old default, so the file states it; a run that sets one
   # explicitly still overrides it. posture_defaults.tftest.hcl pins the new default.
   enable_vpc_sc = true
+  # Slice 7 turned these reversible controls off by default on 2026-10-02. The runs in this
+  # file were written under the old default, so the file states it; a run that sets one
+  # explicitly still overrides it.
+  manage_org_policies                 = true
+  enable_posture_feed                 = true
+  model_armor_log_sanitize_operations = true
+  firestore_delete_protection_enabled = true
+  firestore_pitr_enabled              = true
+  cloud_run_deletion_protection       = true
 }
 
 run "the_registry_is_regional_docker_cmek_and_immutably_tagged" {

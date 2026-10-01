@@ -30,15 +30,15 @@ declines one says so in its own tfvars. A control that cannot be undone never ar
 | `worm_locked` | **none: the plan refuses until it is stated** | `true` locks the audit bucket irreversibly and needs `retention_days >= 2557`; `false` keeps it editable and the stack destroyable |
 | `enable_assured_workloads` | `false` | `true` creates a workload folder under the organization that `terraform destroy` cannot simply remove |
 | `enable_alloydb` | `false` | `true` creates an AlloyDB primary that bills by the hour, for the `platform` profile |
-| `manage_org_policies` | `true` | `false` where another stack owns the project's Org Policies |
-| `manage_audit_config` | `true` | `false` where another stack owns the project's audit config; the sink then routes only this app's own log |
-| `enable_vpc_sc` | `true` | `false` where another stack owns the project's perimeter |
+| `manage_org_policies` | `false` | `true` where this stack owns the project's Org Policies; a shared project states it in exactly one stack |
+| `manage_audit_config` | `false` | `true` where this stack owns the project's audit config; otherwise the sink routes only this app's own log |
+| `enable_vpc_sc` | `false` | `true` where this stack owns the project's perimeter; a shared project states it in exactly one stack |
 | `model_armor_full_capabilities` | `false` | `true` in a region that serves the malicious-URI filter and multi-language detection; `asia-southeast1` serves neither |
-| `model_armor_log_sanitize_operations` | `true` | `false` where no locked bucket holds the screened text |
-| `enable_posture_feed` | `true` | `false` where a project-wide feed would stream siblings' posture that nothing here reads |
+| `model_armor_log_sanitize_operations` | `false` | `true` where a locked bucket holds the screened text |
+| `enable_posture_feed` | `false` | `true` where something reads the project-wide posture feed |
 | `firestore_cmek_enabled` | `true` | `false` on a project Google has not admitted to Firestore CMEK; fixed when the database is created |
-| `firestore_delete_protection_enabled`, `firestore_pitr_enabled` | `true` | `false` for a stack that must stay destroyable and holds no journey it needs to recover |
-| `cloud_run_deletion_protection` | `true` | `false` for a destroyable stack |
+| `firestore_delete_protection_enabled`, `firestore_pitr_enabled` | `false` | `true` for a stack that holds a journey it needs to recover |
+| `cloud_run_deletion_protection` | `false` | `true` for a stack that must not be destroyed by accident |
 
 [`tests/posture.tftest.hcl`](tests/posture.tftest.hcl) proves each row at plan against mock
 providers, including that an unstated lock refuses to plan, and

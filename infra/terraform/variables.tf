@@ -151,7 +151,7 @@ variable "manage_audit_config" {
 # --------------------------------------------------------------------------- #
 variable "manage_org_policies" {
   type        = bool
-  default     = true
+  default     = false
   description = <<-EOT
     Whether THIS stack writes the project's Org Policies (gcp.resourceLocations,
     compute.vmExternalIpAccess, storage.uniformBucketLevelAccess and
@@ -166,6 +166,9 @@ variable "manage_org_policies" {
     applying it into a shared project narrows `gcp.resourceLocations` to that region and breaks
     every sibling that reaches another one, and its restrictNonCmekServices refuses any
     sibling's non-CMEK resource in the services it names. Nothing in this stack's plan says so.
+
+    Off by default since 2026-10-02 (slice 7 of the posture rule: a control that is not
+    irreversible defaults off in code); terraform.tfvars.example states the production form.
   EOT
 }
 
@@ -226,9 +229,12 @@ variable "enable_posture_feed" {
     too, and nothing in this service subscribes to the topic today (the control inventory
     adapter reads Security Command Center and Asset Inventory directly), so a shared-project
     deployment may decline it.
+
+    Off by default since 2026-10-02 (slice 7 of the posture rule: a control that is not
+    irreversible defaults off in code); terraform.tfvars.example states the production form.
   EOT
   type        = bool
-  default     = true
+  default     = false
 }
 
 # --------------------------------------------------------------------------- #
@@ -251,7 +257,7 @@ variable "model_armor_full_capabilities" {
 
 variable "model_armor_log_sanitize_operations" {
   type        = bool
-  default     = true
+  default     = false
   description = <<-EOT
     Whether Model Armor writes sanitize operations to Cloud Logging. True by default.
 
@@ -259,6 +265,9 @@ variable "model_armor_log_sanitize_operations" {
     through DLP de-identification, and the entries are what show an operator why a request was
     blocked. A deployment that runs no locked audit bucket to hold them may decline it, as the
     sibling support stacks in a shared project do.
+
+    Off by default since 2026-10-02 (slice 7 of the posture rule: a control that is not
+    irreversible defaults off in code); terraform.tfvars.example states the production form.
   EOT
 }
 
@@ -281,25 +290,31 @@ variable "firestore_cmek_enabled" {
 
 variable "firestore_delete_protection_enabled" {
   type        = bool
-  default     = true
+  default     = false
   description = <<-EOT
     Firestore delete protection on the ledger and tracker database. Default true.
 
     It refuses `terraform destroy` of the database, which is correct where the tracked
     implementation journey is a record someone relies on. A reference deployment that has
     stated it must stay destroyable declines it rather than holding two opposite postures.
+
+    Off by default since 2026-10-02 (slice 7 of the posture rule: a control that is not
+    irreversible defaults off in code); terraform.tfvars.example states the production form.
   EOT
 }
 
 variable "firestore_pitr_enabled" {
   type        = bool
-  default     = true
+  default     = false
   description = <<-EOT
     Point-in-time recovery on the Firestore database. Default true.
 
     PITR bills continuous backup storage for a recovery window. The ledger can be rebuilt by a
     full corpus refresh; the tracked journey cannot. A deployment that has not rehearsed a
     restore and holds no production journey may decline it and say so.
+
+    Off by default since 2026-10-02 (slice 7 of the posture rule: a control that is not
+    irreversible defaults off in code); terraform.tfvars.example states the production form.
   EOT
 }
 
@@ -432,8 +447,8 @@ variable "corpus_refresh_image" {
 
 variable "cloud_run_deletion_protection" {
   type        = bool
-  default     = true
-  description = "Deletion protection on the corpus refresh Cloud Run job. True by default; a reference stack that must stay destroyable sets false deliberately."
+  default     = false
+  description = "Deletion protection on the corpus refresh Cloud Run job. True by default; a reference stack that must stay destroyable sets false deliberately. Off by default since 2026-10-02 (slice 7 of the posture rule: a control that is not irreversible defaults off in code); terraform.tfvars.example states the production form."
 }
 
 variable "cmek_enabled" {
