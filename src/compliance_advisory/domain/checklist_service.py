@@ -6,8 +6,8 @@ severity / citations), and always flags the result for human review (maker-check
 P-06) because a control checklist is a consequential artifact.
 
 Mirrors the grounded skeleton: redact -> screen(INPUT) -> retrieve -> generate
-(structured) -> map source_ids back to retrieved Citations -> audit. Pure domain
-code — no Google Cloud / ADK imports.
+(structured) -> map source_ids back to retrieved Citations -> screen(OUTPUT)
+-> audit. Pure domain code — no Google Cloud / ADK imports.
 """
 
 from __future__ import annotations
@@ -122,6 +122,19 @@ class ChecklistService:
         parsed = g.parse_structured(response)
         items = self._build_items(parsed, passages)
 
+        # Screen(OUTPUT) every model-written field before it is returned. This path calls the
+        # model directly, so no agent callback screens what the model wrote.
+        rendered = self._render_items(items)
+        if rendered:
+            out_verdict: GuardrailVerdict = g.screen_or_block(
+                self._guardrail, rendered, Direction.OUTPUT
+            )
+            if not out_verdict.allowed:
+                self._write_audit(actor, redacted, "", Decision.BLOCKED)
+                raise GuardrailBlockedError(
+                    out_verdict.reason or "checklist output blocked by guardrail"
+                )
+
         # P-06: a control checklist is consequential and always requires review.
         checklist = ControlChecklist(use_case=use_case, items=items, requires_human_review=True)
         self._audit_checklist(actor, redacted, checklist)
@@ -153,6 +166,16 @@ class ChecklistService:
                 )
             )
         return tuple(out)
+
+    @staticmethod
+    def _render_items(items: tuple[ChecklistItem, ...]) -> str:
+        """Every model-written field of the checklist as one text for the OUTPUT screen."""
+        return "\n".join(
+            part
+            for item in items
+            for part in (item.control_id, item.control, item.rationale)
+            if part
+        )
 
     # ------------------------------------------------------------------ #
     # Audit

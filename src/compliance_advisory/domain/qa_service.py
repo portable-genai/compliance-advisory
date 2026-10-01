@@ -13,7 +13,7 @@ Owns the standard answer pipeline and calls only ports. The pipeline, in order:
          an answer the model marks unsupported cites nothing and is capped at 0.2
       -> self-critique groundedness pass (second llm call) adjusts confidence/caveats
       -> HumanReviewPolicy sets requires_human_review
-      -> guardrail.screen(OUTPUT)
+      -> guardrail.screen(OUTPUT)         [answer, then the self-critique caveats]
       -> audit.record(redacted prompt + response)
 
 Defensive throughout: empty retrieval raises after an escalation audit, malformed model JSON
@@ -248,6 +248,18 @@ class ComplianceQAService:
                 question, redacted_q, actor, out_verdict, direction=Direction.OUTPUT
             )
         final_answer_text = out_verdict.sanitized_text or answer_text
+
+        # The self-critique caveats are model-written text returned beside the answer, so they
+        # pass the OUTPUT screen too. Screened apart from the answer so a sanitized answer
+        # never absorbs caveat text.
+        if critique_caveats:
+            caveat_verdict: GuardrailVerdict = g.screen_or_block(
+                self._guardrail, "\n".join(critique_caveats), Direction.OUTPUT
+            )
+            if not caveat_verdict.allowed:
+                return self._blocked_answer(
+                    question, redacted_q, actor, caveat_verdict, direction=Direction.OUTPUT
+                )
 
         answer = Answer(
             question=question,
