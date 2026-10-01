@@ -99,10 +99,11 @@ run "defaults_create_no_alloydb_and_keep_every_reversible_control" {
   command = plan
 
   variables {
-    cmek_enabled        = true
-    enable_vpc_sc       = false
-    worm_locked         = false
-    manage_audit_config = true
+    cmek_enabled                  = true
+    enable_vpc_sc                 = false
+    worm_locked                   = false
+    manage_audit_config           = true
+    model_armor_full_capabilities = true
   }
 
   assert {
@@ -130,7 +131,7 @@ run "defaults_create_no_alloydb_and_keep_every_reversible_control" {
 
   assert {
     condition     = length(google_assured_workloads_workload.sg) == 0
-    error_message = "An Assured Workloads folder must never arrive by default."
+    error_message = "An Assured Workloads folder must never arrive when stated."
   }
 
   assert {
@@ -180,6 +181,29 @@ run "defaults_create_no_alloydb_and_keep_every_reversible_control" {
   assert {
     condition     = output.alloydb_instance_uri == null && output.assured_workload == null
     error_message = "A declined resource's output is null, so declined and forgotten are distinguishable."
+  }
+}
+
+# Slice 7 of the 2026-09-23 posture rule: a control that is not irreversible defaults off in
+# code, so the regional capabilities arrive only when a deployment states them.
+run "guardrail_regional_capabilities_are_declined_unless_stated" {
+  command = plan
+
+  variables {
+    cmek_enabled        = true
+    enable_vpc_sc       = false
+    worm_locked         = false
+    manage_audit_config = true
+  }
+
+  assert {
+    condition     = length(google_model_armor_template.compliance_guardrail.filter_config[0].malicious_uri_filter_settings) == 0
+    error_message = "model_armor_full_capabilities defaults to false: the malicious-URI filter arrives only when stated."
+  }
+
+  assert {
+    condition     = length(google_model_armor_template.compliance_guardrail.template_metadata[0].multi_language_detection) == 0
+    error_message = "model_armor_full_capabilities defaults to false: multi-language detection arrives only when stated."
   }
 }
 
