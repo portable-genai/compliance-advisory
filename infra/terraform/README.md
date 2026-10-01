@@ -33,7 +33,7 @@ declines one says so in its own tfvars. A control that cannot be undone never ar
 | `manage_org_policies` | `true` | `false` where another stack owns the project's Org Policies |
 | `manage_audit_config` | `true` | `false` where another stack owns the project's audit config; the sink then routes only this app's own log |
 | `enable_vpc_sc` | `true` | `false` where another stack owns the project's perimeter |
-| `model_armor_full_capabilities` | `true` | `false` in a region that does not serve the malicious-URI filter, such as `asia-southeast1` |
+| `model_armor_full_capabilities` | `false` | `true` in a region that serves the malicious-URI filter and multi-language detection; `asia-southeast1` serves neither |
 | `model_armor_log_sanitize_operations` | `true` | `false` where no locked bucket holds the screened text |
 | `enable_posture_feed` | `true` | `false` where a project-wide feed would stream siblings' posture that nothing here reads |
 | `firestore_cmek_enabled` | `true` | `false` on a project Google has not admitted to Firestore CMEK; fixed when the database is created |
