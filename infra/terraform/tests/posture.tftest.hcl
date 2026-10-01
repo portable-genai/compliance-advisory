@@ -61,14 +61,28 @@ run "a_stated_lock_is_the_lock_that_applies" {
   command = plan
 
   variables {
-    enable_vpc_sc = false
-    worm_locked   = true
+    enable_vpc_sc  = false
+    worm_locked    = true
+    retention_days = 2557
   }
 
   assert {
     condition     = google_logging_project_bucket_config.worm_audit.locked == true && google_logging_project_bucket_config.worm_audit.retention_days == 2557
     error_message = "worm_locked = true must lock the audit bucket at the seven-year floor."
   }
+}
+
+# Slice 7 (2026-10-02): retention defaults to 30 days, so a lock with no stated window is refused
+# at plan rather than locking a short trail irreversibly. The production form states 2557.
+run "a_lock_without_a_stated_multi_year_window_is_refused" {
+  command = plan
+
+  variables {
+    enable_vpc_sc = false
+    worm_locked   = true
+  }
+
+  expect_failures = [var.retention_days]
 }
 
 run "assured_workloads_needs_a_billing_account" {

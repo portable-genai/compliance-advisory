@@ -112,10 +112,13 @@ variable "retention_days" {
     Audit log bucket retention, in days. At least 2557 (~7 years) when worm_locked = true,
     because a locked trail is the compliance record (P-08). Any value from 1 while the bucket
     stays unlocked: an unlocked window can be shortened or lengthened later, so it is an
-    operational choice rather than a commitment.
+    operational choice rather than a commitment. Default 30 days since 2026-10-02 (slice 7 of the posture rule: multi-year retention
+    is a reversible control, so it defaults off in code and terraform.tfvars.example
+    states the production form). 30 is the window Cloud Logging's _Default bucket keeps
+    anyway.
   EOT
   type        = number
-  default     = 2557
+  default     = 30
 
   validation {
     condition     = var.retention_days >= 1 && (var.worm_locked != true || var.retention_days >= 2557)
