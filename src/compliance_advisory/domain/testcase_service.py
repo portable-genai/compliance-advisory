@@ -7,8 +7,8 @@ page-level citations. Test cases are consequential output and are produced throu
 the maker-checker pipeline (a human reviews before they are relied upon).
 
 Mirrors the grounded skeleton: redact -> screen(INPUT) -> retrieve -> generate
-(structured) -> map source_ids back to retrieved Citations -> audit. Pure domain
-code — no Google Cloud / ADK imports.
+(structured) -> map source_ids back to retrieved Citations -> screen(OUTPUT)
+-> audit. Pure domain code — no Google Cloud / ADK imports.
 """
 
 from __future__ import annotations
@@ -124,6 +124,20 @@ class TestCaseService:
 
         parsed = g.parse_structured(response)
         test_cases = self._build_test_cases(parsed, passages)
+
+        # Screen(OUTPUT) every model-written field before it is returned. This path calls the
+        # model directly, so no agent callback screens what the model wrote.
+        rendered = self._render_test_cases(test_cases)
+        if rendered:
+            out_verdict: GuardrailVerdict = g.screen_or_block(
+                self._guardrail, rendered, Direction.OUTPUT
+            )
+            if not out_verdict.allowed:
+                self._write_audit(actor, redacted, "", Decision.BLOCKED)
+                raise GuardrailBlockedError(
+                    out_verdict.reason or "test-case output blocked by guardrail"
+                )
+
         self._audit_test_cases(actor, redacted, test_cases)
         return test_cases
 
@@ -156,6 +170,23 @@ class TestCaseService:
                 )
             )
         return out
+
+    @staticmethod
+    def _render_test_cases(test_cases: list[TestCase]) -> str:
+        """Every model-written field of the test cases as one text for the OUTPUT screen."""
+        return "\n".join(
+            part
+            for tc in test_cases
+            for part in (
+                tc.id,
+                tc.title,
+                tc.control_id,
+                *tc.steps,
+                tc.expected_result,
+                tc.automated_check or "",
+            )
+            if part
+        )
 
     # ------------------------------------------------------------------ #
     # Audit

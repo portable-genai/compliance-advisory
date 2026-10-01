@@ -7,8 +7,8 @@ This is consequential output (it shapes supervisory engagement) and runs through
 maker-checker pipeline.
 
 Mirrors the grounded skeleton: redact -> screen(INPUT) -> retrieve -> generate
-(structured) -> map source_ids back to retrieved Citations -> audit. Pure domain
-code — no Google Cloud / ADK imports.
+(structured) -> map source_ids back to retrieved Citations -> screen(OUTPUT)
+-> audit. Pure domain code — no Google Cloud / ADK imports.
 """
 
 from __future__ import annotations
@@ -139,6 +139,20 @@ class RegulatorQuestionService:
 
         parsed = g.parse_structured(response)
         questions = self._build_questions(parsed, passages)
+
+        # Screen(OUTPUT) every model-written field before it is returned. This path calls the
+        # model directly, so no agent callback screens what the model wrote.
+        rendered = self._render_questions(questions)
+        if rendered:
+            out_verdict: GuardrailVerdict = g.screen_or_block(
+                self._guardrail, rendered, Direction.OUTPUT
+            )
+            if not out_verdict.allowed:
+                self._write_audit(actor, redacted, "", Decision.BLOCKED)
+                raise GuardrailBlockedError(
+                    out_verdict.reason or "regulator-question output blocked by guardrail"
+                )
+
         self._audit_questions(actor, redacted, questions)
         return questions
 
@@ -167,6 +181,13 @@ class RegulatorQuestionService:
                 )
             )
         return out
+
+    @staticmethod
+    def _render_questions(questions: list[RegulatorQuestion]) -> str:
+        """Every model-written field of the questions as one text for the OUTPUT screen."""
+        return "\n".join(
+            part for q in questions for part in (q.question, q.why_asked, q.model_answer) if part
+        )
 
     # ------------------------------------------------------------------ #
     # Audit
